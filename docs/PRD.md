@@ -402,3 +402,8 @@ Cada sprint termina com um **APK instalado e testado no celular**.
 - [ ] Cache offline (Room)
 - [ ] iOS (Swift/SwiftUI) — ver [IOS-HANDOFF.md](IOS-HANDOFF.md)
 - [ ] Login por telefone/SMS (se virar necessidade)
+
+### Ideias pós-MVP (registradas, não priorizadas)
+- [ ] **Placar e gols por partida:** o organizador (ou os jogadores) registra o resultado e quem fez cada gol. Visível só para os participantes do jogo, nunca no feed público.
+- [ ] **Modo torneio (privado):** jogos agrupados em torneio com tabela, artilharia e classificação, visível apenas para os inscritos.
+- [ ] **Gamificação amigável:** foco em reconhecimento positivo, sem ranking público de "piores". Ex.: sequência de presença, medalhas de participação ("Primeira pelada", "Organizador de 5 jogos"), artilheiro do mês só entre amigos. Sem punição por faltar nem comparação com desconhecidos.

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,7 +58,35 @@ private enum class Tab(val label: String, val glyph: String) {
 @Composable
 fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = viewModel()) {
     var tab by rememberSaveable { mutableIntStateOf(Tab.Feed.ordinal) }
+    // Cada abertura usa um ViewModel novo (chave diferente), para não herdar "criado" da anterior.
+    var createKey by rememberSaveable { mutableIntStateOf(0) }
+    var creating by rememberSaveable { mutableStateOf(false) }
+    val venues by vm.venues.collectAsState()
+
+    if (creating) {
+        CreateMatchScreen(
+            venues = venues.data,
+            onClose = { creating = false },
+            onCreated = {
+                creating = false
+                vm.refreshFeed()
+            },
+            vm = viewModel(key = "create-$createKey"),
+        )
+        return
+    }
+
     Scaffold(
+        floatingActionButton = {
+            if (tab == Tab.Feed.ordinal) {
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        createKey++
+                        creating = true
+                    },
+                ) { Text("＋ Criar jogo") }
+            }
+        },
         bottomBar = {
             NavigationBar {
                 Tab.entries.forEach { t ->
