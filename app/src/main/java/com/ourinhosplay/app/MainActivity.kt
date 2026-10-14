@@ -14,7 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.ourinhosplay.app.auth.AuthState
 import com.ourinhosplay.app.auth.AuthViewModel
-import com.ourinhosplay.app.ui.HomeScreen
+import com.ourinhosplay.app.ui.HomeShell
 import com.ourinhosplay.app.ui.LoadingScreen
 import com.ourinhosplay.app.ui.LoginScreen
 import com.ourinhosplay.app.ui.NameScreen
@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
                                 onEmailSignUp = vm::emailSignUp,
                             )
                             AuthState.NeedsName -> NameScreen(ui, vm::saveName, vm::signOut)
-                            is AuthState.SignedIn -> HomeScreen(
+                            is AuthState.SignedIn -> HomeShell(
                                 displayName = s.profile.fullName,
                                 onSignOut = vm::signOut,
                             )

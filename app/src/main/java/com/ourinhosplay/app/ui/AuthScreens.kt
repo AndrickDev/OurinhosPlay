@@ -142,20 +142,3 @@ fun NameScreen(ui: AuthUi, onSave: (String) -> Unit, onSignOut: () -> Unit) {
         Messages(ui)
     }
 }
-
-@Composable
-fun HomeScreen(displayName: String, onSignOut: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("Fala, $displayName!", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "Feed de jogos chega no Sprint 2.",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-        )
-        OutlinedButton(onClick = onSignOut) { Text("Sair") }
-    }
-}
