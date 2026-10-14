@@ -61,6 +61,17 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     // Cada abertura usa um ViewModel novo (chave diferente), para não herdar "criado" da anterior.
     var createKey by rememberSaveable { mutableIntStateOf(0) }
     var creating by rememberSaveable { mutableStateOf(false) }
+    var openMatch by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Voltar do sistema fecha detalhe/criação em vez de sair do app.
+    androidx.activity.compose.BackHandler(enabled = creating || openMatch != null) {
+        if (creating) creating = false else openMatch = null
+    }
+
+    openMatch?.let { id ->
+        MatchDetailScreen(matchId = id, onBack = { openMatch = null; vm.refreshFeed() })
+        return
+    }
     val venues by vm.venues.collectAsState()
 
     if (creating) {
@@ -102,7 +113,7 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     ) { inner ->
         Column(Modifier.fillMaxSize().padding(inner)) {
             when (Tab.entries[tab]) {
-                Tab.Feed -> FeedScreen(vm)
+                Tab.Feed -> FeedScreen(vm) { openMatch = it }
                 Tab.Mine -> Placeholder("Meus jogos chega na Sprint 5.")
                 Tab.Venues -> VenuesScreen(vm)
                 Tab.Profile -> ProfileScreen(displayName, onSignOut)
@@ -112,7 +123,7 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
 }
 
 @Composable
-private fun FeedScreen(vm: HomeViewModel) {
+private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
     val ui by vm.feed.collectAsState()
     Column(Modifier.fillMaxSize()) {
         Text(
@@ -143,7 +154,7 @@ private fun FeedScreen(vm: HomeViewModel) {
             state = ui.matches,
             emptyText = "Nenhum jogo ainda. Crie o primeiro!",
             onRetry = vm::refreshFeed,
-        ) { MatchRow(it) }
+        ) { MatchRow(it) { onOpen(it.id) } }
     }
 }
 
@@ -204,9 +215,9 @@ private fun Placeholder(text: String) = Centered {
 }
 
 @Composable
-private fun MatchRow(m: MatchCard) {
+private fun MatchRow(m: MatchCard, onClick: () -> Unit) {
     val sport = Sport.from(m.sport)
-    Card(Modifier.fillMaxWidth()) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
                 "${sport?.emoji.orEmpty()} ${sport?.label ?: m.sport}",

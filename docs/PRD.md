@@ -407,3 +407,23 @@ Cada sprint termina com um **APK instalado e testado no celular**.
 - [ ] **Placar e gols por partida:** o organizador (ou os jogadores) registra o resultado e quem fez cada gol. Visível só para os participantes do jogo, nunca no feed público.
 - [ ] **Modo torneio (privado):** jogos agrupados em torneio com tabela, artilharia e classificação, visível apenas para os inscritos.
 - [ ] **Gamificação amigável:** foco em reconhecimento positivo, sem ranking público de "piores". Ex.: sequência de presença, medalhas de participação ("Primeira pelada", "Organizador de 5 jogos"), artilheiro do mês só entre amigos. Sem punição por faltar nem comparação com desconhecidos.
+
+### Mapeamento de quadras e locais (fazer junto do cadastro real de Ourinhos)
+Decisões do dono do produto, para não perder:
+- [ ] **Um local pode ter várias quadras.** Hoje `venues` é "o lugar" e o anti-choque é por `venue_id`. Criar `courts` (quadra 1, quadra 2...) ligada a `venues`, e mover o anti-choque e `matches.venue_id` para `court_id`. Detalhe: dois jogos no mesmo local em quadras diferentes **não** conflitam.
+- [ ] **Pago x gratuito:** `kind` já separa `public`/`private`. Acrescentar preço (por hora ou por pessoa), forma de contato/reserva, horário de funcionamento e público (aberto, só associados, só alunos).
+- [ ] **Preço visível** no card da quadra e na criação do jogo (estimativa por jogador = preço / vagas).
+- [ ] **Seed real:** substituir os 3 placeholders pelas quadras de Ourinhos com endereço e coordenadas.
+
+### Equipamento por jogo (decisão pendente de modelagem)
+Avaliação: **vale como campo opcional**, não obrigatório. É relevante em quadra pública (ninguém fornece bola/rede) e irrelevante em arena paga que empresta material.
+- [ ] `matches.equipment` (lista): bola, rede, coletes, bomba de ar, conforme o esporte. Cada item com "quem leva" (organizador ou voluntário que toca em "eu levo").
+- [ ] Sugestão automática por esporte (futebol: bola e coletes; vôlei: bola e rede; basquete: bola; beach tennis: raquetes, bola e rede).
+- [ ] Esconder o bloco quando a quadra marcar "fornece equipamento".
+
+### Experiência do dia do jogo (ideias)
+- [x] Contagem regressiva ao vivo no detalhe e notificação com cronômetro (feito na sprint 4).
+- [ ] **Check-in "Cheguei":** botão aparece perto do horário; confirmar chegada manual ou por proximidade (geofence com permissão de localização). A notificação do cronômetro some ao fazer check-in.
+- [ ] **Quem já chegou:** lista mostra quem fez check-in ("3 de 10 no local").
+- [ ] **Chamada no vestiário:** organizador manda aviso curto para os confirmados ("chegando em 10 min").
+- [ ] Som de apito e "GOOOL!" já na entrada (feito); apito diferente de fim de jogo (futuro).

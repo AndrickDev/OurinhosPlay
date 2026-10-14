@@ -59,6 +59,9 @@ import kotlinx.coroutines.launch
 
 private val ZONE: ZoneId get() = ZoneId.systemDefault()
 
+private fun defaultStart(): LocalDateTime =
+    LocalDateTime.now(ZONE).plusHours(2).withMinute(0).withSecond(0).withNano(0)
+
 sealed interface Check {
     data object Idle : Check
     data object Loading : Check
@@ -71,8 +74,9 @@ data class CreateUi(
     val sport: Sport? = null,
     val title: String = "",
     val description: String = "",
-    val date: LocalDate = LocalDate.now(ZONE),
-    val time: LocalTime = LocalTime.now(ZONE).plusHours(2).withMinute(0).withSecond(0).withNano(0),
+    // Próxima hora cheia depois de +1h; data e hora saem do mesmo instante (vira o dia junto).
+    val date: LocalDate = defaultStart().toLocalDate(),
+    val time: LocalTime = defaultStart().toLocalTime(),
     val durationMin: Int = 90,
     val capacity: Int = 10,
     val check: Check = Check.Idle,

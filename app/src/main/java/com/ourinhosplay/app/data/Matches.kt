@@ -1,5 +1,6 @@
 package com.ourinhosplay.app.data
 
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.json.put
@@ -42,6 +43,8 @@ data class MatchCard(
     val capacity: Int,
     val taken: Int,
     val status: String,
+    val description: String? = null,
+    @SerialName("creator_id") val creatorId: String? = null,
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -53,7 +56,7 @@ object MatchRepository {
     suspend fun openMatches(sport: Sport?): List<MatchCard> =
         db.from("matches_feed").select {
             filter {
-                eq("status", "open")
+                isIn("status", listOf("open", "full"))
                 gt("ends_at", java.time.Instant.now().toString())
                 if (sport != null) eq("sport", sport.key)
             }
@@ -120,6 +123,52 @@ object CreateMatchRepository {
             // A 1ª linha da mensagem é o texto da exceção do Postgres (sem URL nem cabeçalhos).
             throw BusinessException(e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }
                 ?: "Não foi possível criar o jogo")
+        }
+    }
+}
+
+@Serializable
+data class ParticipantProfile(
+    @SerialName("display_name") val displayName: String? = null,
+    val tag: Int? = null,
+) {
+    val fullName: String
+        get() = displayName.orEmpty() + (tag?.let { "#" + it.toString().padStart(4, '0') } ?: "")
+}
+
+@Serializable
+data class Participant(
+    @SerialName("user_id") val userId: String,
+    @SerialName("joined_at") val joinedAt: String,
+    val profiles: ParticipantProfile? = null,
+)
+
+object MatchDetailRepository {
+    private val db get() = Supabase.client
+
+    suspend fun detail(id: String): MatchCard? =
+        db.from("matches_feed").select { filter { eq("id", id) } }.decodeSingleOrNull<MatchCard>()
+
+    suspend fun participants(id: String): List<Participant> =
+        db.from("participants")
+            .select(io.github.jan.supabase.postgrest.query.Columns.raw("user_id, joined_at, profiles(display_name, tag)")) {
+                filter { eq("match_id", id) }
+                order("joined_at", Order.ASCENDING)
+            }.decodeList<Participant>()
+
+    fun currentUserId(): String? =
+        db.auth.currentUserOrNull()?.id
+
+    suspend fun join(id: String) = call("join_match", id)
+    suspend fun leave(id: String) = call("leave_match", id)
+
+    private suspend fun call(fn: String, id: String) {
+        try {
+            db.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject { put("p_match_id", id) })
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            throw BusinessException(
+                e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Não foi possível concluir",
+            )
         }
     }
 }
