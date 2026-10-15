@@ -128,12 +128,12 @@ fun ChatSection(matchId: String, color: Color, onToast: (String) -> Unit) {
         runCatching { ChatRepository.photos(matchId) }.onSuccess { photos = it }
     }
 
-    fun run(block: suspend () -> Unit) {
+    fun run(sound: Sound, block: suspend () -> Unit) {
         if (busy) return
         busy = true
         scope.launch {
             runCatching { block() }
-                .onSuccess { reload++ }
+                .onSuccess { reload++; Sfx.fire(context, sound) }
                 .onFailure { e -> onToast((e as? BusinessException)?.message ?: "Sem conexão. Tente de novo.") }
             busy = false
         }
@@ -141,7 +141,7 @@ fun ChatSection(matchId: String, color: Color, onToast: (String) -> Unit) {
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        run {
+        run(Sound.Shutter) {
             val b64 = withContext(Dispatchers.Default) { encodePhoto(context, uri) }
                 ?: throw BusinessException("Não consegui usar essa foto")
             ChatRepository.sendPhoto(matchId, b64)
@@ -190,7 +190,7 @@ fun ChatSection(matchId: String, color: Color, onToast: (String) -> Unit) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             QuickPhrase.entries.forEach { q ->
                 AssistChip(
-                    onClick = { run { ChatRepository.sendPhrase(matchId, q) } },
+                    onClick = { run(Sound.Pop) { ChatRepository.sendPhrase(matchId, q) } },
                     enabled = !busy,
                     label = { Text(q.text) },
                     modifier = Modifier.padding(bottom = 4.dp),

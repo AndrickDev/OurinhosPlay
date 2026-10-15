@@ -236,7 +236,11 @@ fun CreateMatchScreen(
     var showDescription by remember { mutableStateOf(ui.description.isNotBlank()) }
 
     if (ui.created) {
-        androidx.compose.runtime.LaunchedEffect(Unit) { onCreated() }
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            Sfx.fire(ctx, Sound.Fanfare)
+            onCreated()
+        }
     }
 
     val venueCourts = courts.filter { it.venueId == ui.venueId }

@@ -114,6 +114,30 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
             }
         }
 
+        val context = androidx.compose.ui.platform.LocalContext.current
+        var soundOn by remember { mutableStateOf(Sfx.isOn(context)) }
+        Row(
+            Modifier.fillMaxWidth().padding(top = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Sons do app", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Apito, avisos e efeitos. Respeita o modo silencioso.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            androidx.compose.material3.Switch(
+                checked = soundOn,
+                onCheckedChange = {
+                    soundOn = it
+                    Sfx.setOn(context, it)
+                    if (it) Sfx.fire(context, Sound.Chime)
+                },
+            )
+        }
+
         if (isAdmin) {
             Button(onClick = onAdmin, modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) { Text("Painel admin") }
         }

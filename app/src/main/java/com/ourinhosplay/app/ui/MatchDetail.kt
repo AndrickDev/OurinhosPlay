@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -86,6 +87,8 @@ data class DetailUi(
     val celebrations: Int = 0,
     val isAdmin: Boolean = false,
     val friendIds: Set<String> = emptySet(),
+    val leaves: Int = 0,
+    val arrivals: Int = 0,
     /** Jogo excluído): a tela fecha. */
     val deleted: Boolean = false,
 ) {
@@ -141,7 +144,21 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
 
     fun leave() = act { MatchDetailRepository.leave(matchId) }
 
-    fun arrive() = manage("Avisamos a galera que você chegou.") { com.ourinhosplay.app.data.CheckIn.arrive(matchId) }
+    fun arrive() {
+        if (_ui.value.busy) return
+        _ui.update { it.copy(busy = true, toast = null) }
+        viewModelScope.launch {
+            runCatching { com.ourinhosplay.app.data.CheckIn.arrive(matchId) }
+                .onFailure { e ->
+                    val msg = (e as? BusinessException)?.message ?: "Sem conexão. Tente de novo."
+                    _ui.update { it.copy(busy = false, toast = msg) }
+                }
+                .onSuccess {
+                    _ui.update { it.copy(busy = false, toast = "Avisamos a galera que você chegou.", arrivals = it.arrivals + 1) }
+                    load()
+                }
+        }
+    }
 
     fun toast(message: String) = _ui.update { it.copy(toast = message) }
 
@@ -185,7 +202,11 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
             }
             r.onSuccess {
                 _ui.update {
-                    it.copy(busy = false, celebrations = if (joining) it.celebrations + 1 else it.celebrations)
+                    it.copy(
+                        busy = false,
+                        celebrations = if (joining) it.celebrations + 1 else it.celebrations,
+                        leaves = if (joining) it.leaves else it.leaves + 1,
+                    )
                 }
                 load()
             }
@@ -224,9 +245,12 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
             if (!MatchReminder.canNotify(context) && android.os.Build.VERSION.SDK_INT >= 33) {
                 askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
-            Whistle.play(context)
+            Sfx.fire(context, Sound.Whistle)
         }
     }
+
+    LaunchedEffect(ui.leaves) { if (ui.leaves > 0) Sfx.fire(context, Sound.Down) }
+    LaunchedEffect(ui.arrivals) { if (ui.arrivals > 0) Sfx.fire(context, Sound.Chime) }
 
     // Quem está no jogo ganha a notificação com cronômetro; quem sai (ou jogo acabou) perde.
     val reminderKey = Triple(ui.isMember, ui.ended, match?.id)
@@ -260,7 +284,7 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
                     }
                 }
             }
-            Confetti(trigger = ui.celebrations)
+            Confetti(trigger = ui.celebrations, accent = match?.let { Sport.from(it.sport)?.color } ?: Palette.Pista)
             GoalBanner(trigger = ui.celebrations)
         }
     }
@@ -418,24 +442,44 @@ private fun ActionBar(ui: DetailUi, onJoin: () -> Unit, onLeave: () -> Unit) {
 }
 
 
-private class Piece(val angle: Float, val speed: Float, val size: Float, val color: Color)
-
-private val CONFETTI_COLORS = listOf(
-    Color(0xFF2E7D32), Color(0xFFFFB300), Color(0xFF1E88E5), Color(0xFFE53935), Color(0xFF8E24AA),
+private class Piece(
+    val fromLeft: Boolean,
+    val angle: Float,      // rad, direção do canhão
+    val speed: Float,      // px/s (fração da largura)
+    val size: Float,       // dp-ish
+    val spin: Float,       // rad/s
+    val flip: Float,       // rad/s do "virar" 3D
+    val phase: Float,
+    val color: Color,
+    val shape: Int,        // 0 = tira, 1 = bolinha, 2 = estrela
 )
 
-/** Confete em Canvas por ~1,5 s. Some se o usuário desligou as animações do sistema. */
+/**
+ * Confete premium: dois canhões nos cantos de baixo, peças que giram e "viram" em 3D,
+ * arrasto do ar e gravidade, e some em fade. Respeita a animação desligada no sistema.
+ */
 @Composable
-private fun Confetti(trigger: Int) {
+private fun Confetti(trigger: Int, accent: Color = Palette.Pista) {
     val context = LocalContext.current
     val progress = remember { Animatable(1f) }
-    val pieces = remember(trigger) {
-        List(48) {
+    val palette = remember(accent) {
+        listOf(accent, Palette.Pista, Palette.Bola, Palette.Giz, Palette.Sol, Palette.Mar)
+    }
+    val pieces = remember(trigger, palette) {
+        List(90) { i ->
+            val left = i % 2 == 0
+            // cone de ~40° apontando para o centro e para cima
+            val base = if (left) -1.1f else -(Math.PI.toFloat() - 1.1f)
             Piece(
-                angle = Random.nextFloat() * 6.2832f,
-                speed = 0.4f + Random.nextFloat() * 0.9f,
-                size = 6f + Random.nextFloat() * 8f,
-                color = CONFETTI_COLORS.random(),
+                fromLeft = left,
+                angle = base + (Random.nextFloat() - 0.5f) * 0.8f,
+                speed = 0.9f + Random.nextFloat() * 1.1f,
+                size = 7f + Random.nextFloat() * 9f,
+                spin = (Random.nextFloat() - 0.5f) * 14f,
+                flip = 4f + Random.nextFloat() * 9f,
+                phase = Random.nextFloat() * 6.28f,
+                color = palette.random(),
+                shape = when (Random.nextInt(10)) { in 0..5 -> 0; in 6..8 -> 1; else -> 2 },
             )
         }
     }
@@ -444,17 +488,50 @@ private fun Confetti(trigger: Int) {
         val scale = Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         if (scale == 0f) return@LaunchedEffect
         progress.snapTo(0f)
-        progress.animateTo(1f, tween(1500, easing = LinearEasing))
+        progress.animateTo(1f, tween(2600, easing = LinearEasing))
     }
     if (progress.value >= 1f) return
     Canvas(Modifier.fillMaxSize()) {
-        val t = progress.value
-        val origin = Offset(size.width / 2f, size.height * 0.35f)
+        val total = 2.6f
+        val t = progress.value * total
+        val drag = 2.4f
+        val g = size.height * 0.9f // gravidade em px/s²
+        val fade = ((1f - progress.value) / 0.25f).coerceIn(0f, 1f)
+        val decay = 1f - kotlin.math.exp(-drag * t)
         pieces.forEach { p ->
-            val dist = p.speed * size.width * 0.6f * t
-            val x = origin.x + cos(p.angle) * dist
-            val y = origin.y + sin(p.angle) * dist + 900f * t * t // gravidade
-            drawCircle(p.color.copy(alpha = 1f - t), radius = p.size, center = Offset(x, y))
+            val v = p.speed * size.width * 1.35f
+            val vx = cos(p.angle) * v
+            val vy = sin(p.angle) * v
+            val x0 = if (p.fromLeft) -size.width * 0.02f else size.width * 1.02f
+            val y0 = size.height * 0.98f
+            val x = x0 + vx / drag * decay
+            val y = y0 + g / drag * t + (vy - g / drag) / drag * decay
+            val flipScale = kotlin.math.abs(cos(p.phase + p.flip * t))
+            val rot = Math.toDegrees((p.spin * t).toDouble()).toFloat()
+            val c = p.color.copy(alpha = fade)
+            val s = p.size * density
+            rotate(rot, pivot = Offset(x, y)) {
+                when (p.shape) {
+                    0 -> drawRect(
+                        c,
+                        topLeft = Offset(x - s * 0.5f, y - s * 0.25f * flipScale),
+                        size = androidx.compose.ui.geometry.Size(s, s * 0.5f * flipScale + 0.5f),
+                    )
+                    1 -> drawCircle(c, s * 0.32f * (0.4f + 0.6f * flipScale), Offset(x, y))
+                    else -> {
+                        val path = androidx.compose.ui.graphics.Path()
+                        for (k in 0 until 10) {
+                            val r = if (k % 2 == 0) s * 0.55f else s * 0.24f
+                            val a = Math.toRadians(-90.0 + 36.0 * k)
+                            val px = x + r * cos(a).toFloat() * (0.4f + 0.6f * flipScale)
+                            val py = y + r * sin(a).toFloat()
+                            if (k == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                        }
+                        path.close()
+                        drawPath(path, c)
+                    }
+                }
+            }
         }
     }
 }
