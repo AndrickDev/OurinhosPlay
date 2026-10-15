@@ -455,3 +455,7 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Acessibilidade:** testado com fonte 1,6×; marca (splash) não escala com a fonte; botões −/+ com descrição; rótulos da barra não duplicam leitura.
 - **Locais:** 0006/0007 trazem os locais do levantamento (ourinhos_esportes.md). Esportes novos (tênis, padel, natação...) ficam guardados e entram ao liberar no app.
 - **Pendente:** liberar novos esportes; eventos de corrida (A/B no mapa) e divulgação; verificação em celular real e TalkBack.
+
+### 13.1 Esportes e eventos (migration 0010)
+- 12 modalidades no app (cada uma com cor e ícone próprios).
+- **Eventos** (só admin cria, aba Eventos do painel): título, modalidade, local de encontro, largada e chegada (texto), data, duração, até 500 vagas. Não ocupam quadra (fora do anti-choque). Com "destaque" ligado aparecem no topo do feed; o detalhe tem "Ver trajeto no Maps" (largada -> chegada), sem mapa embutido nem GPS ao vivo.

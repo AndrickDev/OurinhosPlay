@@ -52,9 +52,9 @@ O projeto está em desenvolvimento ativo, em fase de validação em aparelho rea
 | 6 | Painel administrativo: quadras, preços e bloqueio de horários | Concluída |
 | 7 | Acessibilidade e acabamento | Em andamento |
 
-Também entregues: identidade visual esportiva, splash animada, locais reais de Ourinhos e quadras gratuitas ou pagas com preço por hora.
+Também entregues: identidade visual esportiva, splash animada, locais reais de Ourinhos e quadras gratuitas ou pagas com preço por hora. Doze modalidades (futebol, vôlei, basquete, beach tennis, futsal, tênis, padel, natação, biribol, corrida, ciclismo e caminhada) e eventos com largada e chegada no Maps, destacados no topo do feed.
 
-Ainda não existe: liberar esportes adicionais (tênis, padel, natação), eventos de corrida, verificação com TalkBack e em celular físico, e distribuição pela Play Store.
+Ainda não existe: verificação com TalkBack e em celular físico, e distribuição pela Play Store.
 
 O detalhamento completo de telas, fluxos e modelo de dados está em [docs/PRD.md](docs/PRD.md).
 
@@ -75,7 +75,7 @@ Seis tabelas no schema `public`, todas com Row Level Security: `profiles`, `venu
 
 - **Anti-choque:** restrição `EXCLUDE USING gist` sobre o par quadra e intervalo de tempo em `matches`, com `tstzrange`. A regra vale para qualquer cliente, não só para o app.
 - **Escrita por RPC:** criar, entrar, sair, editar, cancelar e excluir jogo passam por funções do servidor (`create_match`, `join_match`, `leave_match`, `update_match`, `cancel_match`, `delete_match`). Operações administrativas conferem `is_admin()`.
-- **Migrações:** nove arquivos versionados em [supabase/migrations](supabase/migrations), aplicados em ordem.
+- **Migrações:** dez arquivos versionados em [supabase/migrations](supabase/migrations), aplicados em ordem.
 
 ## Segurança em poucas linhas
 
@@ -98,7 +98,7 @@ Preencha `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `GOOGLE_WEB_CLIENT_ID`. Os valore
 
 **2. Criar as tabelas**
 
-No painel do Supabase, abra o SQL Editor e execute, em ordem, os arquivos de [supabase/migrations](supabase/migrations) de `0001` a `0007` e `0009`. O `0008_jogos_de_teste_OPCIONAL.sql` só insere jogos de exemplo e pode ser pulado.
+No painel do Supabase, abra o SQL Editor e execute, em ordem, os arquivos de [supabase/migrations](supabase/migrations) de `0001` a `0007`, depois `0009` e `0010`. O `0008_jogos_de_teste_OPCIONAL.sql` só insere jogos de exemplo e pode ser pulado.
 
 **3. Rodar no emulador**
 

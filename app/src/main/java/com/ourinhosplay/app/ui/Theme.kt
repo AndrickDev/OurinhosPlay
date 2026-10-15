@@ -35,6 +35,14 @@ object Palette {
     val Sol = Color(0xFFFFC928)          // vôlei
     val Madeira = Color(0xFFFF9A3D)      // basquete
     val Mar = Color(0xFF22D3EE)          // beach tennis
+    val Teal = Color(0xFF34D1BF)         // futsal
+    val Lima = Color(0xFFA3E635)         // tênis
+    val Lavanda = Color(0xFF8C9EFF)      // padel
+    val Azul = Color(0xFF4DA3FF)         // natação
+    val Rosa = Color(0xFFF472B6)         // biribol
+    val Coral = Color(0xFFFF7A8A)        // corrida
+    val Roxo = Color(0xFFB388FF)         // ciclismo
+    val Areia = Color(0xFFD9C7A0)        // caminhada
 }
 
 private val Display = FontFamily(

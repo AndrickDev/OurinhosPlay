@@ -12,7 +12,15 @@ enum class Sport(val key: String, val label: String, val emoji: String) {
     Futebol("futebol", "Futebol", "⚽"),
     Volei("volei", "Vôlei", "🏐"),
     Basquete("basquete", "Basquete", "🏀"),
-    BeachTennis("beach_tennis", "Beach Tennis", "🎾");
+    BeachTennis("beach_tennis", "Beach Tennis", "🎾"),
+    Futsal("futsal", "Futsal", "⚽"),
+    Tenis("tenis", "Tênis", "🎾"),
+    Padel("padel", "Padel", "🎾"),
+    Natacao("natacao", "Natação", "🏊"),
+    Biribol("biribol", "Biribol", "🏐"),
+    Corrida("corrida", "Corrida", "🏃"),
+    Ciclismo("ciclismo", "Ciclismo", "🚴"),
+    Caminhada("caminhada", "Caminhada", "🚶");
 
     companion object {
         fun from(key: String): Sport? = entries.firstOrNull { it.key == key }
@@ -49,6 +57,10 @@ data class MatchCard(
     @SerialName("court_name") val courtName: String? = null,
     @SerialName("court_is_free") val courtIsFree: Boolean? = null,
     @SerialName("court_price_cents") val courtPriceCents: Int? = null,
+    @SerialName("is_event") val isEvent: Boolean = false,
+    val promoted: Boolean = false,
+    @SerialName("route_start") val routeStart: String? = null,
+    @SerialName("route_end") val routeEnd: String? = null,
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -305,6 +317,35 @@ object AdminRepository {
     }
 
     suspend fun deleteCourt(id: String) = rpc("admin_delete_court") { put("p_court_id", id) }
+
+    suspend fun createEvent(
+        venueId: String,
+        sport: Sport,
+        title: String,
+        description: String,
+        startsAt: java.time.Instant,
+        durationMin: Int,
+        capacity: Int,
+        routeStart: String,
+        routeEnd: String,
+        promoted: Boolean,
+    ) = rpc("admin_create_event") {
+        put("p_venue_id", venueId)
+        put("p_sport", sport.key)
+        put("p_title", title)
+        put("p_description", description)
+        put("p_starts_at", startsAt.toString())
+        put("p_duration_min", durationMin)
+        put("p_capacity", capacity)
+        put("p_route_start", routeStart)
+        put("p_route_end", routeEnd)
+        put("p_promoted", promoted)
+    }
+
+    suspend fun setPromoted(matchId: String, promoted: Boolean) = rpc("admin_set_promoted") {
+        put("p_match_id", matchId)
+        put("p_promoted", promoted)
+    }
 
     private suspend fun rpc(fn: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) {
         try {

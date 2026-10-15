@@ -230,8 +230,13 @@ private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
 
         // Agrupa por dia: cabeçalhos viram itens da mesma lista.
         val items: List<Any> = buildList {
+            val featured = ui.matches.data.filter { it.isEvent && it.promoted && it.status != "cancelled" }
+            if (featured.isNotEmpty()) {
+                add("Em destaque")
+                addAll(featured)
+            }
             var last: String? = null
-            ui.matches.data.forEach { m ->
+            ui.matches.data.filterNot { it in featured }.forEach { m ->
                 val label = dayGroupLabel(m.startsAt)
                 if (label != last) { add(label); last = label }
                 add(m)

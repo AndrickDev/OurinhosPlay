@@ -286,6 +286,19 @@ private fun Details(ui: DetailUi, m: MatchCard) {
             Text(m.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
+        if (!m.routeStart.isNullOrBlank() && !m.routeEnd.isNullOrBlank()) {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            Column(
+                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text("Largada: ${m.routeStart}", style = MaterialTheme.typography.bodyLarge)
+                Text("Chegada: ${m.routeEnd}", style = MaterialTheme.typography.bodyLarge)
+                OutlinedButton(onClick = { openRoute(ctx, m.routeStart!!, m.routeEnd!!) }) { Text("Ver trajeto no Maps") }
+            }
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
             Text(
@@ -626,4 +639,13 @@ private fun shareMatch(context: android.content.Context, m: MatchCard) {
         putExtra(android.content.Intent.EXTRA_TEXT, text)
     }
     context.startActivity(android.content.Intent.createChooser(send, "Chamar a galera"))
+}
+
+/** Abre o trajeto largada -> chegada no Google Maps (ou no navegador). */
+private fun openRoute(context: android.content.Context, start: String, end: String) {
+    val url = "https://www.google.com/maps/dir/?api=1&origin=" + android.net.Uri.encode(start) +
+        "&destination=" + android.net.Uri.encode(end) + "&travelmode=walking"
+    runCatching {
+        context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+    }
 }

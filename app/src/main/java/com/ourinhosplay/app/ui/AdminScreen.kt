@@ -130,6 +130,16 @@ class AdminViewModel : ViewModel() {
         AdminRepository.saveCourt(venueId, courtId, name, sports, isFree, priceCents, audience)
     }
 
+    fun createEvent(
+        venueId: String, sport: Sport, title: String, description: String, start: Instant,
+        durationMin: Int, capacity: Int, routeStart: String, routeEnd: String, promoted: Boolean,
+    ) = act("Evento criado.", {}) {
+        AdminRepository.createEvent(venueId, sport, title, description, start, durationMin, capacity, routeStart, routeEnd, promoted)
+    }
+
+    fun setPromoted(id: String, promoted: Boolean) =
+        act(if (promoted) "Evento em destaque." else "Destaque removido.", {}) { AdminRepository.setPromoted(id, promoted) }
+
     fun deleteCourt(id: String, after: () -> Unit) =
         act("Quadra removida.", after) { AdminRepository.deleteCourt(id) }
 }
@@ -162,6 +172,7 @@ fun AdminScreen(
     var editCourt by remember { mutableStateOf<Pair<Venue, Court?>?>(null) }
     var newBlock by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<Court?>(null) }
+    var newEvent by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -179,7 +190,7 @@ fun AdminScreen(
             containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.primary,
         ) {
-            listOf("Jogos", "Quadras", "Bloqueios").forEachIndexed { i, label ->
+            listOf("Jogos", "Eventos", "Quadras", "Bloqueios").forEachIndexed { i, label ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) })
             }
         }
@@ -204,7 +215,30 @@ fun AdminScreen(
                 }
             }
 
-            1 -> Column(
+            1 -> Column(Modifier.fillMaxSize()) {
+                Button(onClick = { newEvent = true }, modifier = Modifier.padding(16.dp)) { Text("+ Novo evento") }
+                val events = ui.matches.data.filter { it.isEvent }
+                if (events.isEmpty()) {
+                    Empty("Nenhum evento. Crie corridas, caminhadas e torneios.")
+                } else {
+                    LazyColumn(
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(events) { m ->
+                            Column {
+                                MatchTicket(m, onClick = {})
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Em destaque no topo", modifier = Modifier.weight(1f).padding(start = 4.dp))
+                                    Switch(checked = m.promoted, onCheckedChange = { vm.setPromoted(m.id, it) }, enabled = !ui.busy)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            2 -> Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -299,6 +333,17 @@ fun AdminScreen(
             onSave = { name, sports, free, cents, audience ->
                 vm.saveCourt(venue.id, court?.id, name, sports, free, cents, audience, onCatalogChanged)
                 editCourt = null
+            },
+        )
+    }
+
+    if (newEvent) {
+        EventDialog(
+            venues = venues,
+            onDismiss = { newEvent = false },
+            onSave = { venueId, sport, title, desc, start, dur, cap, a, b, promo ->
+                vm.createEvent(venueId, sport, title, desc, start, dur, cap, a, b, promo)
+                newEvent = false
             },
         )
     }
@@ -494,6 +539,114 @@ private fun BlockDialog(
                         if (isStart) start = t else end = t
                         pick = null
                     }) { Text("OK") }
+                },
+                dismissButton = { TextButton(onClick = { pick = null }) { Text("Voltar") } },
+                text = { TimePicker(state) },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun EventDialog(
+    venues: List<Venue>,
+    onDismiss: () -> Unit,
+    onSave: (String, Sport, String, String, Instant, Int, Int, String, String, Boolean) -> Unit,
+) {
+    var venueId by remember { mutableStateOf<String?>(null) }
+    var sport by remember { mutableStateOf(Sport.Corrida) }
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var routeStart by remember { mutableStateOf("") }
+    var routeEnd by remember { mutableStateOf("") }
+    var capacity by remember { mutableStateOf("100") }
+    var hours by remember { mutableStateOf("2") }
+    var promoted by remember { mutableStateOf(true) }
+    var date by remember { mutableStateOf(LocalDate.now(ZONE).plusDays(7)) }
+    var time by remember { mutableStateOf(LocalTime.of(7, 0)) }
+    var pick by remember { mutableStateOf<String?>(null) }
+
+    val cap = capacity.toIntOrNull()
+    val dur = hours.toIntOrNull()
+    val start = date.atTime(time).atZone(ZONE).toInstant()
+    val valid = venueId != null && title.trim().length in 2..60 &&
+        cap != null && cap in 1..500 && dur != null && dur in 1..12 && start.isAfter(Instant.now())
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Novo evento") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(title, { title = it.take(60) }, label = { Text("Nome do evento") }, singleLine = true)
+                Text("Modalidade", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Sport.entries.forEach { s ->
+                        FilterChip(selected = sport == s, onClick = { sport = s }, label = { Text(s.label) }, colors = appChipColors())
+                    }
+                }
+                Text("Local de encontro", style = MaterialTheme.typography.titleSmall)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    venues.forEach { v ->
+                        FilterChip(selected = venueId == v.id, onClick = { venueId = v.id }, label = { Text(v.name) }, colors = appChipColors())
+                    }
+                }
+                OutlinedTextField(routeStart, { routeStart = it.take(120) }, label = { Text("Largada (endereço ou lugar)") })
+                OutlinedTextField(routeEnd, { routeEnd = it.take(120) }, label = { Text("Chegada (endereço ou lugar)") })
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { pick = "date" }) { Text(date.format(DateTimeFormatter.ofPattern("EEE dd/MM", Locale("pt", "BR")))) }
+                    OutlinedButton(onClick = { pick = "time" }) { Text(time.format(HOUR_FMT)) }
+                }
+                OutlinedTextField(
+                    hours, { hours = it.filter(Char::isDigit).take(2) }, label = { Text("Duração (horas)") }, singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                OutlinedTextField(
+                    capacity, { capacity = it.filter(Char::isDigit).take(3) }, label = { Text("Vagas (até 500)") }, singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+                OutlinedTextField(description, { description = it.take(300) }, label = { Text("Descrição (opcional)") })
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Destacar no topo do feed", modifier = Modifier.weight(1f))
+                    Switch(checked = promoted, onCheckedChange = { promoted = it })
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(venueId!!, sport, title.trim(), description.trim(), start, dur!! * 60, cap!!, routeStart.trim(), routeEnd.trim(), promoted)
+                },
+                enabled = valid,
+            ) { Text("Criar evento") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Voltar") } },
+    )
+
+    when (pick) {
+        "date" -> {
+            val state = rememberDatePickerState(
+                initialSelectedDateMillis = date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            )
+            DatePickerDialog(
+                onDismissRequest = { pick = null },
+                confirmButton = {
+                    TextButton(onClick = {
+                        state.selectedDateMillis?.let {
+                            date = Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                        }
+                        pick = null
+                    }) { Text("OK") }
+                },
+                dismissButton = { TextButton(onClick = { pick = null }) { Text("Voltar") } },
+            ) { DatePicker(state) }
+        }
+        "time" -> {
+            val state = rememberTimePickerState(initialHour = time.hour, initialMinute = time.minute, is24Hour = true)
+            AlertDialog(
+                onDismissRequest = { pick = null },
+                confirmButton = {
+                    TextButton(onClick = { time = LocalTime.of(state.hour, state.minute); pick = null }) { Text("OK") }
                 },
                 dismissButton = { TextButton(onClick = { pick = null }) { Text("Voltar") } },
                 text = { TimePicker(state) },

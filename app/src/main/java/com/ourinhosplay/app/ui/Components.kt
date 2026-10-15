@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsRun
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.DirectionsBike
+import androidx.compose.material.icons.rounded.Pool
 import androidx.compose.material.icons.rounded.SportsBasketball
 import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.SportsTennis
@@ -50,6 +54,14 @@ val Sport.color: Color
         Sport.Volei -> Palette.Sol
         Sport.Basquete -> Palette.Madeira
         Sport.BeachTennis -> Palette.Mar
+        Sport.Futsal -> Palette.Teal
+        Sport.Tenis -> Palette.Lima
+        Sport.Padel -> Palette.Lavanda
+        Sport.Natacao -> Palette.Azul
+        Sport.Biribol -> Palette.Rosa
+        Sport.Corrida -> Palette.Coral
+        Sport.Ciclismo -> Palette.Roxo
+        Sport.Caminhada -> Palette.Areia
     }
 
 val Sport.icon: ImageVector
@@ -58,6 +70,14 @@ val Sport.icon: ImageVector
         Sport.Volei -> Icons.Rounded.SportsVolleyball
         Sport.Basquete -> Icons.Rounded.SportsBasketball
         Sport.BeachTennis -> Icons.Rounded.SportsTennis
+        Sport.Futsal -> Icons.Rounded.SportsSoccer
+        Sport.Tenis -> Icons.Rounded.SportsTennis
+        Sport.Padel -> Icons.Rounded.SportsTennis
+        Sport.Natacao -> Icons.Rounded.Pool
+        Sport.Biribol -> Icons.Rounded.SportsVolleyball
+        Sport.Corrida -> Icons.AutoMirrored.Rounded.DirectionsRun
+        Sport.Ciclismo -> Icons.Rounded.DirectionsBike
+        Sport.Caminhada -> Icons.AutoMirrored.Rounded.DirectionsWalk
     }
 
 fun localTime(iso: String): ZonedDateTime? =
@@ -138,6 +158,14 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (sport != null) Icon(sport.icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
                 Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelMedium, color = color)
+                if (m.isEvent) {
+                    Text(
+                        "EVENTO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Palette.Noite,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.Bola).padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                }
             }
             Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(m.venueName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
