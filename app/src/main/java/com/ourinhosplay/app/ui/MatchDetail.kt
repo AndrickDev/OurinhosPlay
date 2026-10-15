@@ -85,7 +85,8 @@ data class DetailUi(
     /** Sobe a cada entrada confirmada; dispara vibração e confete. */
     val celebrations: Int = 0,
     val isAdmin: Boolean = false,
-    /** Jogo excluído: a tela fecha. */
+    val friendIds: Set<String> = emptySet(),
+    /** Jogo excluído): a tela fecha. */
     val deleted: Boolean = false,
 ) {
     val canManage: Boolean get() = isCreator || isAdmin
@@ -108,6 +109,10 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
     init {
         load()
         viewModelScope.launch { runCatching { MatchDetailRepository.isAdmin() }.onSuccess { a -> _ui.update { it.copy(isAdmin = a) } } }
+        viewModelScope.launch {
+            runCatching { com.ourinhosplay.app.data.FriendsRepository.list() }
+                .onSuccess { f -> _ui.update { it.copy(friendIds = f.map { x -> x.id }.toSet()) } }
+        }
     }
 
     fun load() {
@@ -135,6 +140,10 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
     fun join() = act { MatchDetailRepository.join(matchId) }
 
     fun leave() = act { MatchDetailRepository.leave(matchId) }
+
+    fun arrive() = manage("Avisamos a galera que você chegou.") { com.ourinhosplay.app.data.CheckIn.arrive(matchId) }
+
+    fun toast(message: String) = _ui.update { it.copy(toast = message) }
 
     fun cancelMatch() = manage("Jogo cancelado.") { MatchDetailRepository.cancel(matchId) }
 
@@ -246,7 +255,7 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
                         OutlinedButton(onClick = vm::load, modifier = Modifier.padding(top = 12.dp)) { Text("Tentar de novo") }
                     }
                     else -> {
-                        Details(ui, match)
+                        Details(ui, match, onArrive = vm::arrive, onToast = vm::toast)
                         if (ui.canManage) ManageCard(ui, match, vm)
                     }
                 }
@@ -258,7 +267,7 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun Details(ui: DetailUi, m: MatchCard) {
+private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (String) -> Unit) {
     val sport = Sport.from(m.sport)
     val color = sport?.color ?: Palette.Pista
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -281,6 +290,17 @@ private fun Details(ui: DetailUi, m: MatchCard) {
         }
 
         Countdown(m.startsAt, m.endsAt, ui.ended)
+        WeatherCard(m.startsAt, ui.ended)
+
+        val me = ui.participants.firstOrNull { it.userId == ui.me }
+        val startMs = parseMillis(m.startsAt)
+        val canArrive = ui.isMember && !ui.ended && me?.arrivedAt == null &&
+            startMs != null && System.currentTimeMillis() >= startMs - 60 * 60 * 1000
+        if (canArrive) {
+            Button(onClick = onArrive, enabled = !ui.busy, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text("✅ Cheguei na quadra")
+            }
+        }
 
         if (!m.description.isNullOrBlank()) {
             Text(m.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -345,12 +365,18 @@ private fun Details(ui: DetailUi, m: MatchCard) {
                     val tag = buildList {
                         if (p.userId == m.creatorId) add("organizador")
                         if (p.userId == ui.me) add("você")
+                        if (p.userId != ui.me && p.userId in ui.friendIds) add("★ amigo")
+                        if (p.arrivedAt != null) add("✓ chegou")
                     }.joinToString(" · ")
                     if (tag.isNotEmpty()) {
                         Text(tag, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
+        }
+
+        if (ui.isMember && !ui.cancelled) {
+            ChatSection(m.id, color, onToast)
         }
     }
 }

@@ -367,25 +367,6 @@ private fun VenueRow(v: Venue, courts: List<Court>) {
     }
 }
 
-@Composable
-private fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, onAdmin: () -> Unit) = Centered {
-    Box(
-        Modifier.size(88.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            displayName.firstOrNull()?.uppercase() ?: "?",
-            style = MaterialTheme.typography.displayMedium,
-            color = MaterialTheme.colorScheme.onPrimary,
-        )
-    }
-    Text(displayName, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 16.dp))
-    if (isAdmin) {
-        androidx.compose.material3.Button(onClick = onAdmin, modifier = Modifier.padding(top = 24.dp)) { Text("Painel admin") }
-    }
-    OutlinedButton(onClick = onSignOut, modifier = Modifier.padding(top = 24.dp)) { Text("Sair") }
-}
-
 private fun openInMaps(context: Context, v: Venue) {
     val query = if (v.lat != null && v.lng != null) "${v.lat},${v.lng}(${v.name})" else "${v.name}, ${v.address}"
     val geo = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(query)))

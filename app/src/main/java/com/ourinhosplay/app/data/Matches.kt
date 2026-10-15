@@ -206,6 +206,7 @@ data class ParticipantProfile(
 data class Participant(
     @SerialName("user_id") val userId: String,
     @SerialName("joined_at") val joinedAt: String,
+    @SerialName("arrived_at") val arrivedAt: String? = null,
     val profiles: ParticipantProfile? = null,
 )
 
@@ -217,7 +218,7 @@ object MatchDetailRepository {
 
     suspend fun participants(id: String): List<Participant> =
         db.from("participants")
-            .select(io.github.jan.supabase.postgrest.query.Columns.raw("user_id, joined_at, profiles(display_name, tag)")) {
+            .select(io.github.jan.supabase.postgrest.query.Columns.raw("user_id, joined_at, arrived_at, profiles(display_name, tag)")) {
                 filter { eq("match_id", id) }
                 order("joined_at", Order.ASCENDING)
             }.decodeList<Participant>()

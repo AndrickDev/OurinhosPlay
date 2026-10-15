@@ -47,6 +47,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ourinhosplay.app.data.AdminRepository
+import com.ourinhosplay.app.data.AdminUser
+import com.ourinhosplay.app.data.AdminUsers
 import com.ourinhosplay.app.data.BusinessException
 import com.ourinhosplay.app.data.Court
 import com.ourinhosplay.app.data.MatchCard
@@ -70,6 +72,7 @@ import kotlinx.coroutines.launch
 data class AdminUi(
     val matches: Remote<MatchCard> = Remote(),
     val blocks: Remote<VenueBlock> = Remote(),
+    val users: Remote<AdminUser> = Remote(),
     val busy: Boolean = false,
     val message: String? = null,
 )
@@ -86,6 +89,12 @@ class AdminViewModel : ViewModel() {
             val m = runCatching { MatchRepository.openMatches(null) }
             _ui.update {
                 it.copy(matches = m.fold({ d -> Remote(false, null, d) }, { e -> Remote(false, friendlyError(e)) }))
+            }
+        }
+        viewModelScope.launch {
+            val u = runCatching { AdminUsers.list() }
+            _ui.update {
+                it.copy(users = u.fold({ d -> Remote(false, null, d) }, { e -> Remote(false, friendlyError(e)) }))
             }
         }
         viewModelScope.launch {
@@ -117,6 +126,8 @@ class AdminViewModel : ViewModel() {
     }
 
     fun cancelMatch(id: String) = act("Jogo cancelado.", {}) { MatchDetailRepository.cancel(id) }
+
+    fun deleteUser(id: String) = act("Conta removida.", {}) { AdminUsers.delete(id) }
 
     fun removeBlock(id: String) = act("Bloqueio removido.", {}) { AdminRepository.removeBlock(id) }
 
@@ -173,6 +184,7 @@ fun AdminScreen(
     var newBlock by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<Court?>(null) }
     var newEvent by remember { mutableStateOf(false) }
+    var confirmUser by remember { mutableStateOf<AdminUser?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -190,7 +202,7 @@ fun AdminScreen(
             containerColor = MaterialTheme.colorScheme.background,
             contentColor = MaterialTheme.colorScheme.primary,
         ) {
-            listOf("Jogos", "Eventos", "Quadras", "Bloqueios").forEachIndexed { i, label ->
+            listOf("Jogos", "Eventos", "Quadras", "Bloqueios", "Pessoas").forEachIndexed { i, label ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) })
             }
         }
@@ -272,6 +284,33 @@ fun AdminScreen(
                 }
             }
 
+            4 -> when {
+                ui.users.loading && ui.users.data.isEmpty() -> Loading()
+                ui.users.error != null -> Problem(ui.users.error!!, vm::refresh)
+                ui.users.data.isEmpty() -> Empty("Nenhuma pessoa cadastrada.")
+                else -> LazyColumn(
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(ui.users.data) { u ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                                .padding(start = 14.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(u.fullName + if (u.role == "admin") " · admin" else "", style = MaterialTheme.typography.titleSmall)
+                                Text(u.email ?: "sem e-mail", style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (u.role != "admin") {
+                                TextButton(onClick = { confirmUser = u }, enabled = !ui.busy) { Text("Remover") }
+                            }
+                        }
+                    }
+                }
+            }
+
             else -> Column(Modifier.fillMaxSize()) {
                 Button(onClick = { newBlock = true }, modifier = Modifier.padding(16.dp)) { Text("+ Bloquear horário") }
                 when {
@@ -312,6 +351,16 @@ fun AdminScreen(
             text = { Text("\"${m.title}\" será cancelado para todos os participantes.") },
             confirmButton = { TextButton(onClick = { vm.cancelMatch(m.id); confirmCancel = null }) { Text("Cancelar jogo") } },
             dismissButton = { TextButton(onClick = { confirmCancel = null }) { Text("Voltar") } },
+        )
+    }
+
+    confirmUser?.let { u ->
+        AlertDialog(
+            onDismissRequest = { confirmUser = null },
+            title = { Text("Remover conta?") },
+            text = { Text("${u.fullName} (${u.email ?: "sem e-mail"}) perde o login, sai de todos os jogos e os jogos que criou são apagados. Não dá para desfazer.") },
+            confirmButton = { TextButton(onClick = { vm.deleteUser(u.id); confirmUser = null }) { Text("Remover de vez") } },
+            dismissButton = { TextButton(onClick = { confirmUser = null }) { Text("Voltar") } },
         )
     }
 
