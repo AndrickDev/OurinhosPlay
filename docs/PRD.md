@@ -435,3 +435,15 @@ Avaliação: **vale como campo opcional**, não obrigatório. É relevante em qu
 - **Peça-assinatura:** o card-ingresso (`MatchTicket`): horário gigante na cor do esporte e vagas como pílulas acesas (`SlotBar`).
 - **Novo esporte:** adicionar em `Sport` (cor + ícone) e liberar no `check` de `matches.sport`.
 - **Pendências de design:** telas de login/nome ainda no estilo padrão; ícone do app; estado "ao vivo" no feed; área de eventos e divulgação (corridas, torneios) com destaque no topo do feed.
+
+### Eventos de corrida e divulgação (decisão do dono do produto, depois do painel admin)
+Ordem combinada: acabar o design → base real de quadras → painel admin → eventos/divulgação.
+- [ ] **Evento de corrida simples:** o organizador marca no mapa o ponto A (largada) e o ponto B (chegada) e o app mostra o trajeto entre eles. Sem animação do percurso, sem GPS ao vivo.
+- [ ] Campos: nome, data/hora, ponto de largada e de chegada, distância (calculada), descrição, vagas opcionais.
+- [ ] Mostrar o trajeto: linha entre A e B sobre o mapa (MapLibre/OSM, previsto em "Mapa embutido"); na versão mínima, "Abrir no Maps" com origem e destino.
+- [ ] **Divulgação:** destaque no topo do feed para eventos promovidos (corridas, torneios, aberturas de quadra), gerido pelo painel admin.
+
+### Splash e logo
+- Abertura animada (`SplashScreen`): a bola (o "O") rola engolindo "urinhos", chega ao "P", "lay" some e o P vira o play, fechando no monograma OP.
+- Logo vertical responsivo (`AppLogo`): "Ourinhos" com o O de bola em cima, "Play" com triângulo embaixo.
+- Ícone do app: bola de futebol com o play no lugar do pentágono central.

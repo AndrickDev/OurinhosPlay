@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ourinhosplay.app.BuildConfig
 import com.ourinhosplay.app.auth.AuthUi
 
@@ -67,11 +68,11 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("OurinhosPlay", style = MaterialTheme.typography.headlineLarge)
+        AppLogo(fontSize = 54.sp)
         Text(
             "Marque o jogo, chame a galera.",
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(top = 8.dp, bottom = 32.dp),
+            modifier = Modifier.padding(top = 16.dp, bottom = 32.dp),
         )
         Button(
             onClick = onGoogle,
