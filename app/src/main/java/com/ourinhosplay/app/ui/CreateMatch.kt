@@ -105,6 +105,20 @@ class CreateMatchViewModel : ViewModel() {
         recheck()
     }
 
+    /** "Jogar de novo": copia quadra, esporte, título e vagas de um jogo anterior. */
+    fun prefill(m: com.ourinhosplay.app.data.MatchCard) {
+        _ui.update {
+            it.copy(
+                venueId = m.venueId,
+                sport = Sport.from(m.sport),
+                title = m.title,
+                description = m.description.orEmpty(),
+                capacity = m.capacity,
+            )
+        }
+        recheck()
+    }
+
     fun setSport(s: Sport) = _ui.update { it.copy(sport = s) }
     fun setTitle(t: String) = _ui.update { it.copy(title = t.take(60)) }
     fun setDescription(t: String) = _ui.update { it.copy(description = t.take(300)) }

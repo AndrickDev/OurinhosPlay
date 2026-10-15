@@ -62,6 +62,7 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     var createKey by rememberSaveable { mutableIntStateOf(0) }
     var creating by rememberSaveable { mutableStateOf(false) }
     var openMatch by rememberSaveable { mutableStateOf<String?>(null) }
+    var template by remember { mutableStateOf<MatchCard?>(null) }
 
     // Voltar do sistema fecha detalhe/criação em vez de sair do app.
     androidx.activity.compose.BackHandler(enabled = creating || openMatch != null) {
@@ -75,14 +76,18 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     val venues by vm.venues.collectAsState()
 
     if (creating) {
+        val createVm: CreateMatchViewModel = viewModel(key = "create-$createKey")
+        androidx.compose.runtime.LaunchedEffect(createKey) { template?.let { createVm.prefill(it) } }
         CreateMatchScreen(
             venues = venues.data,
-            onClose = { creating = false },
+            onClose = { creating = false; template = null },
             onCreated = {
                 creating = false
+                template = null
                 vm.refreshFeed()
+                vm.refreshMine()
             },
-            vm = viewModel(key = "create-$createKey"),
+            vm = createVm,
         )
         return
     }
@@ -114,7 +119,11 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
         Column(Modifier.fillMaxSize().padding(inner)) {
             when (Tab.entries[tab]) {
                 Tab.Feed -> FeedScreen(vm) { openMatch = it }
-                Tab.Mine -> Placeholder("Meus jogos chega na Sprint 5.")
+                Tab.Mine -> MineScreen(vm, onOpen = { openMatch = it }, onAgain = {
+                    template = it
+                    createKey++
+                    creating = true
+                })
                 Tab.Venues -> VenuesScreen(vm)
                 Tab.Profile -> ProfileScreen(displayName, onSignOut)
             }
@@ -215,7 +224,7 @@ private fun Placeholder(text: String) = Centered {
 }
 
 @Composable
-private fun MatchRow(m: MatchCard, onClick: () -> Unit) {
+internal fun MatchRow(m: MatchCard, onClick: () -> Unit) {
     val sport = Sport.from(m.sport)
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -226,7 +235,11 @@ private fun MatchRow(m: MatchCard, onClick: () -> Unit) {
             Text(m.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text("${m.venueName} · ${whenLabel(m.startsAt)}", style = MaterialTheme.typography.bodyMedium)
             Text(
-                if (m.spotsLeft == 0) "Lotado" else "${m.taken}/${m.capacity} confirmados",
+                when {
+                    m.status == "cancelled" -> "Cancelado"
+                    m.spotsLeft == 0 -> "Lotado"
+                    else -> "${m.taken}/${m.capacity} confirmados"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -281,4 +294,45 @@ private fun whenLabel(iso: String): String {
         else -> local.format(DAY_FMT)
     }
     return "$day ${local.format(HOUR_FMT)}"
+}
+
+@Composable
+private fun MineScreen(vm: HomeViewModel, onOpen: (String) -> Unit, onAgain: (MatchCard) -> Unit) {
+    val state by vm.mine.collectAsState()
+    var tabIndex by rememberSaveable { mutableIntStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.refreshMine() }
+
+    val now = Instant.now()
+    fun isUpcoming(m: MatchCard): Boolean {
+        if (m.status == "cancelled" || m.status == "finished") return false
+        val end = runCatching { java.time.OffsetDateTime.parse(m.endsAt).toInstant() }.getOrNull() ?: return true
+        return end.isAfter(now)
+    }
+    val upcoming = state.data.filter(::isUpcoming).sortedBy { it.startsAt }
+    val history = state.data.filterNot(::isUpcoming)
+    val shown = if (tabIndex == 0) upcoming else history
+
+    Column(Modifier.fillMaxSize()) {
+        Text(
+            "Meus jogos",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
+        )
+        androidx.compose.material3.TabRow(selectedTabIndex = tabIndex) {
+            androidx.compose.material3.Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Próximos") })
+            androidx.compose.material3.Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Histórico") })
+        }
+        RemoteList(
+            state = state.copy(data = shown),
+            emptyText = if (tabIndex == 0) "Você não está em nenhum jogo ainda." else "Seu histórico aparece aqui.",
+            onRetry = vm::refreshMine,
+        ) { m ->
+            Column {
+                MatchRow(m) { onOpen(m.id) }
+                if (tabIndex == 1) {
+                    TextButton(onClick = { onAgain(m) }) { Text("🔁 Jogar de novo") }
+                }
+            }
+        }
+    }
 }

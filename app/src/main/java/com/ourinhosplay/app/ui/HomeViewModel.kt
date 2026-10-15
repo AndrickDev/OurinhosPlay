@@ -32,9 +32,22 @@ class HomeViewModel : ViewModel() {
     private val _venues = MutableStateFlow(Remote<Venue>())
     val venues: StateFlow<Remote<Venue>> = _venues.asStateFlow()
 
+    private val _mine = MutableStateFlow(Remote<MatchCard>())
+    val mine: StateFlow<Remote<MatchCard>> = _mine.asStateFlow()
+
     init {
         refreshFeed()
         refreshVenues()
+    }
+
+    fun refreshMine() {
+        _mine.update { it.copy(loading = it.data.isEmpty(), error = null) }
+        viewModelScope.launch {
+            _mine.value = runCatching { com.ourinhosplay.app.data.MineRepository.matches() }.fold(
+                onSuccess = { Remote(loading = false, data = it) },
+                onFailure = { Remote(loading = false, error = friendlyError(it)) },
+            )
+        }
     }
 
     fun selectSport(sport: Sport?) {

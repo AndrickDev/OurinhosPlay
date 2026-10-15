@@ -270,6 +270,13 @@ private fun Details(ui: DetailUi, m: MatchCard) {
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 8.dp),
         )
+        if (!ui.ended) {
+            val context = LocalContext.current
+            OutlinedButton(
+                onClick = { shareMatch(context, m) },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            ) { Text("📤 Chamar a galera") }
+        }
         Text(
             "Quem vai",
             style = MaterialTheme.typography.titleMedium,
@@ -459,8 +466,10 @@ private fun ManageCard(ui: DetailUi, m: MatchCard, vm: MatchDetailViewModel) {
                     Text("Cancelar jogo")
                 }
             }
-            TextButton(onClick = { confirmDelete = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
-                Text("Excluir jogo", color = MaterialTheme.colorScheme.error)
+            if (ui.isAdmin) {
+                TextButton(onClick = { confirmDelete = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text("Excluir de vez (admin)", color = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
@@ -543,4 +552,22 @@ private fun EditDialog(m: MatchCard, taken: Int, onSave: (String, String, Int) -
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
     )
+}
+
+/** Abre a folha de compartilhar do Android (WhatsApp etc.) com o convite pronto. */
+private fun shareMatch(context: android.content.Context, m: MatchCard) {
+    val sport = Sport.from(m.sport)
+    val left = m.spotsLeft
+    val text = buildString {
+        append("${sport?.emoji.orEmpty()} ${m.title}\n")
+        append("📍 ${m.venueName}\n")
+        append("🕒 ${whenFull(m.startsAt, m.endsAt)}\n")
+        append(if (left > 0) "Faltam $left vagas. Bora lá!" else "Lotado, mas fica de olho.")
+        append("\n\nBaixe o OurinhosPlay e confirme sua presença.")
+    }
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(send, "Chamar a galera"))
 }

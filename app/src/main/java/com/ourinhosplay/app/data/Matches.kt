@@ -64,6 +64,30 @@ object MatchRepository {
         }.decodeList<MatchCard>()
 }
 
+@Serializable
+private data class MatchIdRow(@SerialName("match_id") val matchId: String)
+
+object MineRepository {
+    private val db get() = Supabase.client
+
+    /** Jogos que criei ou em que estou confirmado (inclui passados e cancelados). */
+    suspend fun matches(): List<MatchCard> {
+        val uid = db.auth.currentUserOrNull()?.id ?: return emptyList()
+        val ids = db.from("participants")
+            .select(io.github.jan.supabase.postgrest.query.Columns.list("match_id")) { filter { eq("user_id", uid) } }
+            .decodeList<MatchIdRow>().map { it.matchId }
+        return db.from("matches_feed").select {
+            filter {
+                or {
+                    eq("creator_id", uid)
+                    if (ids.isNotEmpty()) isIn("id", ids)
+                }
+            }
+            order("starts_at", Order.DESCENDING)
+        }.decodeList<MatchCard>()
+    }
+}
+
 object VenueRepository {
     private val db get() = Supabase.client
 
