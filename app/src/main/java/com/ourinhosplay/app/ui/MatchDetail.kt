@@ -75,7 +75,12 @@ data class DetailUi(
     val toast: String? = null,
     /** Sobe a cada entrada confirmada; dispara vibração e confete. */
     val celebrations: Int = 0,
+    val isAdmin: Boolean = false,
+    /** Jogo excluído: a tela fecha. */
+    val deleted: Boolean = false,
 ) {
+    val canManage: Boolean get() = isCreator || isAdmin
+    val cancelled: Boolean get() = match?.status == "cancelled"
     val isMember: Boolean get() = participants.any { it.userId == me }
     val isCreator: Boolean get() = match?.creatorId != null && match.creatorId == me
     val ended: Boolean
@@ -91,7 +96,10 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
     private val _ui = MutableStateFlow(DetailUi(me = MatchDetailRepository.currentUserId()))
     val ui: StateFlow<DetailUi> = _ui.asStateFlow()
 
-    init { load() }
+    init {
+        load()
+        viewModelScope.launch { runCatching { MatchDetailRepository.isAdmin() }.onSuccess { a -> _ui.update { it.copy(isAdmin = a) } } }
+    }
 
     fun load() {
         _ui.update { it.copy(loading = it.match == null, error = null) }
@@ -118,6 +126,33 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
     fun join() = act { MatchDetailRepository.join(matchId) }
 
     fun leave() = act { MatchDetailRepository.leave(matchId) }
+
+    fun cancelMatch() = manage("Jogo cancelado.") { MatchDetailRepository.cancel(matchId) }
+
+    fun deleteMatch() = manage(null) { MatchDetailRepository.delete(matchId) }
+
+    fun edit(title: String, description: String, capacity: Int) =
+        manage("Jogo atualizado.") { MatchDetailRepository.update(matchId, title.trim(), description.trim(), capacity) }
+
+    /** Ação de organizador/admin: sem festa; mostra aviso e recarrega (ou fecha se excluiu). */
+    private fun manage(okMessage: String?, block: suspend () -> Unit) {
+        if (_ui.value.busy) return
+        _ui.update { it.copy(busy = true, toast = null) }
+        viewModelScope.launch {
+            val r = runCatching { block() }
+            r.onFailure { e ->
+                val msg = (e as? BusinessException)?.message ?: "Sem conexão. Tente de novo."
+                _ui.update { it.copy(busy = false, toast = msg) }
+            }
+            r.onSuccess {
+                if (okMessage == null) _ui.update { it.copy(busy = false, deleted = true) }
+                else {
+                    _ui.update { it.copy(busy = false, toast = okMessage) }
+                    load()
+                }
+            }
+        }
+    }
 
     private fun act(block: suspend () -> Unit) {
         if (_ui.value.busy) return
@@ -152,6 +187,7 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     val match = ui.match
 
+    LaunchedEffect(ui.deleted) { if (ui.deleted) onBack() }
     LaunchedEffect(ui.toast) {
         ui.toast?.let {
             snackbar.showSnackbar(it)
@@ -200,7 +236,10 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
                         Text(ui.error ?: "Jogo não encontrado.", color = MaterialTheme.colorScheme.error)
                         OutlinedButton(onClick = vm::load, modifier = Modifier.padding(top = 12.dp)) { Text("Tentar de novo") }
                     }
-                    else -> Details(ui, match)
+                    else -> {
+                        Details(ui, match)
+                        if (ui.canManage) ManageCard(ui, match, vm)
+                    }
                 }
             }
             Confetti(trigger = ui.celebrations)
@@ -263,9 +302,8 @@ private fun ActionBar(ui: DetailUi, onJoin: () -> Unit, onLeave: () -> Unit) {
     val full = m.status == "full" || m.spotsLeft == 0
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
         when {
-            ui.ended -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) { Text("Encerrado") }
-            ui.isCreator -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                Text("Você organiza esse jogo")
+            ui.ended -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                Text(if (ui.cancelled) "Cancelado" else "Encerrado")
             }
             ui.isMember -> OutlinedButton(onClick = onLeave, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
                 Text("Sair do jogo")
@@ -339,7 +377,7 @@ private fun Countdown(startIso: String, endIso: String, ended: Boolean) {
     if (ended) return
     val start = parseMillis(startIso) ?: return
     val end = parseMillis(endIso) ?: return
-    var now by androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis())
+    var now by remember { androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
             now = System.currentTimeMillis()
@@ -398,4 +436,111 @@ private fun GoalBanner(trigger: Int) {
             },
         )
     }
+}
+
+/** Editar / cancelar / excluir: só para o organizador e para admin. */
+@Composable
+private fun ManageCard(ui: DetailUi, m: MatchCard, vm: MatchDetailViewModel) {
+    var edit by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var confirmCancel by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var confirmDelete by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    androidx.compose.material3.Card(Modifier.fillMaxWidth().padding(top = 24.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                if (ui.isCreator) "Você organiza esse jogo" else "Administração",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            if (!ui.cancelled && !ui.ended) {
+                OutlinedButton(onClick = { edit = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text("Editar")
+                }
+                OutlinedButton(onClick = { confirmCancel = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cancelar jogo")
+                }
+            }
+            TextButton(onClick = { confirmDelete = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
+                Text("Excluir jogo", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+
+    if (confirmCancel) ConfirmDialog(
+        title = "Cancelar esse jogo?",
+        text = "Quem confirmou verá que o jogo foi cancelado.",
+        confirm = "Cancelar jogo",
+        dismiss = "Voltar",
+        onConfirm = { confirmCancel = false; vm.cancelMatch() },
+        onDismiss = { confirmCancel = false },
+    )
+    if (confirmDelete) ConfirmDialog(
+        title = "Excluir de vez?",
+        text = "O jogo e a lista de confirmados somem. Não dá para desfazer.",
+        confirm = "Excluir",
+        dismiss = "Voltar",
+        onConfirm = { confirmDelete = false; vm.deleteMatch() },
+        onDismiss = { confirmDelete = false },
+    )
+    if (edit) EditDialog(
+        m = m,
+        taken = m.taken,
+        onSave = { t, d, c -> edit = false; vm.edit(t, d, c) },
+        onDismiss = { edit = false },
+    )
+}
+
+@Composable
+private fun ConfirmDialog(
+    title: String,
+    text: String,
+    confirm: String,
+    dismiss: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirm) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(dismiss) } },
+    )
+}
+
+@Composable
+private fun EditDialog(m: MatchCard, taken: Int, onSave: (String, String, Int) -> Unit, onDismiss: () -> Unit) {
+    var title by remember { androidx.compose.runtime.mutableStateOf(m.title) }
+    var description by remember { androidx.compose.runtime.mutableStateOf(m.description.orEmpty()) }
+    var capacity by remember { androidx.compose.runtime.mutableIntStateOf(m.capacity) }
+    val min = maxOf(1, taken)
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar jogo") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it.take(60) },
+                    label = { Text("Título") },
+                    singleLine = true,
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it.take(300) },
+                    label = { Text("Descrição") },
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Vagas")
+                    OutlinedButton(onClick = { capacity = (capacity - 1).coerceAtLeast(min) }) { Text("−") }
+                    Text("$capacity", style = MaterialTheme.typography.titleLarge)
+                    OutlinedButton(onClick = { capacity = (capacity + 1).coerceAtMost(40) }) { Text("+") }
+                }
+                Text("Quadra e horário não mudam aqui: para isso, cancele e crie outro jogo.", style = MaterialTheme.typography.bodySmall)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(title, description, capacity) }, enabled = title.trim().length >= 2) { Text("Salvar") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
 }

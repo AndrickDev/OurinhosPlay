@@ -79,6 +79,7 @@ data class CreateUi(
     val time: LocalTime = defaultStart().toLocalTime(),
     val durationMin: Int = 90,
     val capacity: Int = 10,
+    val creatorJoins: Boolean = true,
     val check: Check = Check.Idle,
     val busy: Boolean = false,
     val error: String? = null,
@@ -107,7 +108,8 @@ class CreateMatchViewModel : ViewModel() {
     fun setSport(s: Sport) = _ui.update { it.copy(sport = s) }
     fun setTitle(t: String) = _ui.update { it.copy(title = t.take(60)) }
     fun setDescription(t: String) = _ui.update { it.copy(description = t.take(300)) }
-    fun setCapacity(n: Int) = _ui.update { it.copy(capacity = n.coerceIn(2, 40)) }
+    fun setCreatorJoins(v: Boolean) = _ui.update { it.copy(creatorJoins = v) }
+    fun setCapacity(n: Int) = _ui.update { it.copy(capacity = n.coerceIn(1, 40)) }
 
     fun setDate(d: LocalDate) { _ui.update { it.copy(date = d) }; recheck() }
     fun setTime(t: LocalTime) { _ui.update { it.copy(time = t) }; recheck() }
@@ -160,6 +162,7 @@ class CreateMatchViewModel : ViewModel() {
                         startsAt = s.startsAt,
                         durationMin = s.durationMin,
                         capacity = s.capacity,
+                        creatorJoins = s.creatorJoins,
                     ),
                 )
             }
@@ -261,6 +264,17 @@ fun CreateMatchScreen(
             OutlinedButton(onClick = { vm.setCapacity(ui.capacity - 1) }) { Text("−") }
             Text("${ui.capacity}", style = MaterialTheme.typography.titleLarge)
             OutlinedButton(onClick = { vm.setCapacity(ui.capacity + 1) }) { Text("+") }
+        }
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Eu também vou jogar", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    if (ui.creatorJoins) "Você ocupa uma das vagas." else "Você só organiza, sem ocupar vaga.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            androidx.compose.material3.Switch(checked = ui.creatorJoins, onCheckedChange = vm::setCreatorJoins)
         }
 
         OutlinedTextField(

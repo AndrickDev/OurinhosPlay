@@ -87,6 +87,7 @@ data class NewMatch(
     val startsAt: java.time.Instant,
     val durationMin: Int,
     val capacity: Int,
+    val creatorJoins: Boolean = true,
 )
 
 /** Erro de negócio vindo do banco (mensagem já em português, segura para exibir). */
@@ -117,6 +118,7 @@ object CreateMatchRepository {
                     put("p_starts_at", m.startsAt.toString())
                     put("p_duration_min", m.durationMin)
                     put("p_capacity", m.capacity)
+                    put("p_creator_joins", m.creatorJoins)
                 },
             )
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
@@ -158,6 +160,29 @@ object MatchDetailRepository {
 
     fun currentUserId(): String? =
         db.auth.currentUserOrNull()?.id
+
+    suspend fun isAdmin(): Boolean = ProfileRepository.current()?.role == "admin"
+
+    suspend fun cancel(id: String) = call("cancel_match", id)
+    suspend fun delete(id: String) = call("delete_match", id)
+
+    suspend fun update(id: String, title: String, description: String, capacity: Int) {
+        try {
+            db.postgrest.rpc(
+                "update_match",
+                kotlinx.serialization.json.buildJsonObject {
+                    put("p_match_id", id)
+                    put("p_title", title)
+                    put("p_description", description)
+                    put("p_capacity", capacity)
+                },
+            )
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            throw BusinessException(
+                e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Não foi possível salvar",
+            )
+        }
+    }
 
     suspend fun join(id: String) = call("join_match", id)
     suspend fun leave(id: String) = call("leave_match", id)
