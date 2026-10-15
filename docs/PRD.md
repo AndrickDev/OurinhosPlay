@@ -468,3 +468,7 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Bichinhos**: animal sorteado pelo id do jogo, rosto variando, equipamento do esporte, duas cores.
 - **Admin > Pessoas**: nome, e-mail, remover conta de vez (apaga login, participações e jogos criados). Não remove admin nem a si mesmo.
 - **APK de teste**: build type `beta` (sem debug, otimizado, ~3 MB), mesmo applicationId e assinatura do debug. Play Store: keystore próprio + novo cliente OAuth Android (pacote `com.ourinhosplay.app`).
+
+### 13.3 Áudio e figurinhas
+- **Apito**: gravação real de apito de juiz (CC0, SpliceSound, via Wikimedia Commons), `res/raw/apito_juiz.wav`, recortado e normalizado. Os demais sons seguem sintetizados.
+- **Figurinhas**: um atleta minimalista fazendo o movimento de cada esporte (chute, cortada, arremesso, saque, braçada, corrida, pedalada, caminhada), com contorno claro de adesivo. Substituiu os bichinhos.

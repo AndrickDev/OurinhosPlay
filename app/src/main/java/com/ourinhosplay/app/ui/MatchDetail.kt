@@ -584,7 +584,7 @@ private fun Countdown(startIso: String, endIso: String, ended: Boolean) {
     )
 }
 
-/** "GOOOL!" que estoura na tela e some junto do confete. */
+/** "BORA LÁ!!!" que estoura na tela e some junto do confete. */
 @Composable
 private fun GoalBanner(trigger: Int) {
     val context = LocalContext.current
@@ -604,13 +604,16 @@ private fun GoalBanner(trigger: Int) {
     if (alpha.value <= 0f) return
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(
-            "GOOOL! ⚽",
-            style = MaterialTheme.typography.displayMedium,
-            fontWeight = FontWeight.Black,
-            color = MaterialTheme.colorScheme.primary,
+            "BORA LÁ!!!",
+            fontFamily = ScoreFont,
+            fontWeight = FontWeight.ExtraBold,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+            fontSize = 58.sp,
+            color = Palette.Bola,
             modifier = Modifier.graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
+                rotationZ = -5f
                 this.alpha = alpha.value
             },
         )

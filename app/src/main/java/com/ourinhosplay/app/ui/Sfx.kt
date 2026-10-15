@@ -84,24 +84,8 @@ object Sfx {
         return out
     }
 
-    /** Apito de juiz: um sopro firme, com a bolinha vibrando (trinado) e o ar no final. */
-    private fun whistle(): DoubleArray {
-        val seconds = 0.75
-        val n = (RATE * seconds).toInt()
-        var phase = 0.0
-        return DoubleArray(n) { i ->
-            val t = i.toDouble() / RATE
-            val trill = 1.0 + 0.45 * sin(2 * PI * 36.0 * t)         // bolinha batendo
-            val hz = 2900.0 + 60.0 * sin(2 * PI * 6.0 * t)          // leve variação do sopro
-            phase += 2 * PI * hz / RATE
-            val env = minOf(1.0, t / 0.02) * minOf(1.0, (seconds - t) / 0.10)
-            val breath = (Random.nextDouble() - 0.5) * 0.10
-            (sin(phase) * 0.50 * trill / 1.45 + sin(phase * 2) * 0.10 + breath) * env
-        }
-    }
-
     private fun build(sound: Sound): DoubleArray = when (sound) {
-        Sound.Whistle -> whistle()
+        Sound.Whistle -> DoubleArray(0) // gravação real: res/raw/apito_juiz.wav
         Sound.Chime -> mix(bell(784.0, 0.45), bell(1175.0, 0.55), 0.11)
         Sound.Pop -> sweep(720.0, 260.0, 0.09)
         Sound.Down -> mix(bell(587.0, 0.30, 0.45), bell(392.0, 0.45, 0.45), 0.12)
@@ -131,11 +115,23 @@ object Sfx {
         scope.launch { play(app, sound) }
     }
 
+    /** Apito real (CC0, SpliceSound via Wikimedia Commons) tocado por MediaPlayer. */
+    private suspend fun playRaw(context: Context, resId: Int) {
+        val mp = android.media.MediaPlayer.create(context, resId) ?: return
+        mp.setOnCompletionListener { it.release() }
+        mp.setOnErrorListener { p, _, _ -> p.release(); true }
+        mp.start()
+    }
+
     /** Respeita a preferência do app e o toque do celular (silencioso/vibrar = sem som). */
     suspend fun play(context: Context, sound: Sound) = withContext(Dispatchers.Default) {
         if (!isOn(context)) return@withContext
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         if (am.ringerMode != AudioManager.RINGER_MODE_NORMAL) return@withContext
+        if (sound == Sound.Whistle) {
+            playRaw(context, com.ourinhosplay.app.R.raw.apito_juiz)
+            return@withContext
+        }
         val data = pcm(sound)
         val track = AudioTrack.Builder()
             .setAudioAttributes(
