@@ -58,6 +58,79 @@ Ainda não existe: verificação com TalkBack e em celular físico, e distribui�
 
 O detalhamento completo de telas, fluxos e modelo de dados está em [docs/PRD.md](docs/PRD.md).
 
+## Fluxo do app
+
+```mermaid
+flowchart TD
+    A([Abrir o app]) --> B{Logado?}
+    B -- não --> C[Entrar com Google] --> D[Escolher nome#tag]
+    B -- sim --> E
+    D --> E[Jogos: feed por modalidade e dia]
+    E --> F[Abrir jogo]
+    E --> G[Criar jogo]
+    E --> H[Tenho um código]
+    H --> F
+    G --> G1[1 Modalidade] --> G2[2 Local e quadra] --> G3[3 Data, hora, duração] --> G4[4 Detalhes: vagas, nível, rateio, repetir]
+    G3 --> V{Horário livre?}
+    V -- não --> V1[Sugere o próximo horário livre] --> G3
+    V -- sim --> G4 --> P([Jogo publicado])
+    F --> J[Bora lá: entrar na lista]
+    J --> K[Lembrete 1 h antes]
+    K --> L[Cheguei na quadra]
+    L --> M[Chat com frases, foto, rateio]
+    M --> N([Jogo termina; chat some em 6 h])
+```
+
+## Arquitetura
+
+```mermaid
+flowchart LR
+    subgraph Celular[App Android - Kotlin + Compose]
+        UI[Telas] --> VM[ViewModels] --> R[Repositórios]
+    end
+    R -- HTTPS --> S[(Supabase)]
+    subgraph S[Supabase]
+        AU[Auth Google]
+        PG[(PostgreSQL + RLS)]
+        RPC[Funções RPC<br/>create_match, join_match...]
+    end
+    R -. previsão .-> W[Open-Meteo]
+```
+
+## Modelo de dados
+
+```mermaid
+erDiagram
+    PROFILES ||--o{ MATCHES : cria
+    PROFILES ||--o{ PARTICIPANTS : entra
+    MATCHES  ||--o{ PARTICIPANTS : tem
+    VENUES   ||--o{ COURTS : possui
+    VENUES   ||--o{ MATCHES : sedia
+    COURTS   ||--o{ MATCHES : ocupa
+    VENUES   ||--o{ VENUE_BLOCKS : bloqueia
+    MATCHES  ||--o{ MATCH_MESSAGES : chat
+    MATCHES  ||--o{ MATCH_PHOTOS : fotos
+    PROFILES ||--o{ FRIENDSHIPS : amigos
+```
+
+## Roadmap
+
+| Fase | Itens | Situação |
+|---|---|---|
+| Base | Login, perfil, feed, criar jogo com anti-choque, entrar e sair | Pronto |
+| Social | Cheguei, chat com frases e foto, amigos, estatísticas leves | Pronto |
+| Organização | Recorrência, rateio com Pix, jogo por código, nível, lembrete | Pronto |
+| Admin | Jogos, eventos, quadras e preços, bloqueios, pessoas | Pronto |
+| Próximo | Lista de espera com promoção automática | Ideia |
+| Próximo | Sorteio de times equilibrados por nível | Ideia |
+| Próximo | Notificações push (vaga aberta, cancelamento, amigo entrou) | Ideia |
+| Depois | Convite por link que abre direto no jogo | Ideia |
+| Depois | Selo de presença confiável (sem ranking de piores) | Ideia |
+| Depois | Check-in por proximidade na quadra | Ideia |
+| Depois | Mural de fotos do jogo (some em 7 dias) | Ideia |
+| Depois | Aulas e escolinhas dos locais municipais | Ideia |
+| Lançamento | Versão assinada para a Play Store e cliente OAuth próprio | Planejado |
+
 ## Tecnologia
 
 | Camada | Escolha | Motivo |
