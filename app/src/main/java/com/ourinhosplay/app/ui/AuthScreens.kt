@@ -80,7 +80,7 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         ) { Text("Entrar com Google") }
 
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.SHOW_EMAIL_LOGIN) {
             Text(
                 "Só em build debug",
                 style = MaterialTheme.typography.labelMedium,

@@ -26,6 +26,8 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"${secrets.getProperty("SUPABASE_URL", "")}\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secrets.getProperty("SUPABASE_ANON_KEY", "")}\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${secrets.getProperty("GOOGLE_WEB_CLIENT_ID", "")}\"")
+        // Login por e-mail/senha só para desenvolvimento: ligue com SHOW_EMAIL_LOGIN=true em secrets.properties.
+        buildConfigField("boolean", "SHOW_EMAIL_LOGIN", secrets.getProperty("SHOW_EMAIL_LOGIN", "false"))
     }
 
     buildTypes {
