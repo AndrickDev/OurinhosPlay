@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,6 +45,11 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
     var input by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var gallery by remember { mutableStateOf(false) }
+    var mine by remember { mutableStateOf<List<com.ourinhosplay.app.data.MatchCard>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        runCatching { com.ourinhosplay.app.data.MineRepository.matches() }.onSuccess { mine = it }
+    }
 
     suspend fun reload() {
         runCatching { FriendsRepository.list() }.onSuccess { friends = it }
@@ -62,6 +68,11 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
         }
     }
 
+    if (gallery) {
+        ArtGallery(onClose = { gallery = false })
+        return
+    }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,6 +88,25 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
             )
         }
         Text(displayName, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 16.dp))
+
+        // estatísticas leves: só o que é seu, sem ranking
+        val me = com.ourinhosplay.app.data.MatchDetailRepository.currentUserId()
+        val now = java.time.Instant.now()
+        val finished = mine.filter {
+            it.status != "cancelled" &&
+                runCatching { java.time.OffsetDateTime.parse(it.endsAt).toInstant().isBefore(now) }.getOrDefault(false)
+        }
+        val organized = mine.count { it.creatorId == me && it.status != "cancelled" }
+        val favorite = finished.groupingBy { it.sport }.eachCount().maxByOrNull { it.value }
+            ?.let { com.ourinhosplay.app.data.Sport.from(it.key) }
+        Row(
+            Modifier.fillMaxWidth().padding(top = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            StatTile("${finished.size}", "jogos feitos", Modifier.weight(1f))
+            StatTile("$organized", "organizados", Modifier.weight(1f))
+            StatTile(favorite?.label ?: "—", "esporte favorito", Modifier.weight(1f))
+        }
 
         Column(Modifier.fillMaxWidth().padding(top = 28.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Amigos", style = MaterialTheme.typography.headlineSmall)
@@ -141,6 +171,41 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
         if (isAdmin) {
             Button(onClick = onAdmin, modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) { Text("Painel admin") }
         }
+        if (com.ourinhosplay.app.BuildConfig.SHOW_EMAIL_LOGIN) {
+            OutlinedButton(onClick = { gallery = true }, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                Text("Galeria de artes (dev)")
+            }
+        }
         OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Sair") }
+    }
+}
+
+/** Só para desenvolvimento (SHOW_EMAIL_LOGIN=true): confere a arte de todas as modalidades. */
+@Composable
+private fun ArtGallery(onClose: () -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TextButton(onClick = onClose) { Text("← Voltar") }
+        com.ourinhosplay.app.data.Sport.entries.forEach { s ->
+            Box(
+                Modifier.fillMaxWidth().height(190.dp).clip(MaterialTheme.shapes.large).background(s.color),
+            ) {
+                SportArt(s, Modifier.matchParentSize())
+                Text(s.label, style = MaterialTheme.typography.titleLarge, color = Palette.Noite, modifier = Modifier.padding(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatTile(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(vertical = 14.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(value, style = MaterialTheme.typography.headlineSmall, maxLines = 1)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
 }

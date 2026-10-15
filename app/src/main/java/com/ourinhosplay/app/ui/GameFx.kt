@@ -58,3 +58,55 @@ object MatchReminder {
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(id(matchId))
     }
 }
+
+/** Dispara a notificação "seu jogo começa em 1 hora". */
+class ReminderReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (!MatchReminder.canNotify(context)) return
+        val title = intent.getStringExtra("title") ?: return
+        val venue = intent.getStringExtra("venue").orEmpty()
+        val matchId = intent.getStringExtra("matchId") ?: return
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= 26) {
+            nm.createNotificationChannel(
+                NotificationChannel("match_reminder", "Lembrete do jogo", NotificationManager.IMPORTANCE_HIGH),
+            )
+        }
+        val open = PendingIntent.getActivity(
+            context, 1, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val n = NotificationCompat.Builder(context, "match_reminder")
+            .setSmallIcon(context.applicationInfo.icon)
+            .setContentTitle("⏱ Seu jogo começa em 1 hora")
+            .setContentText("$title · $venue")
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .build()
+        nm.notify(("rem" + matchId).hashCode(), n)
+    }
+}
+
+/** Lembrete local 1 h antes do jogo (alarme do sistema; não precisa de servidor). */
+object Reminders {
+    private fun pending(context: Context, matchId: String, title: String, venue: String): PendingIntent =
+        PendingIntent.getBroadcast(
+            context, ("rem" + matchId).hashCode(),
+            Intent(context, ReminderReceiver::class.java)
+                .putExtra("matchId", matchId).putExtra("title", title).putExtra("venue", venue),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+    fun schedule(context: Context, matchId: String, title: String, venue: String, startMs: Long) {
+        val at = startMs - 60 * 60 * 1000L
+        if (at <= System.currentTimeMillis()) return
+        val am = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        runCatching { am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pending(context, matchId, title, venue)) }
+    }
+
+    fun cancel(context: Context, matchId: String) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        runCatching { am.cancel(pending(context, matchId, "", "")) }
+    }
+}

@@ -207,3 +207,68 @@ fun ChatSection(matchId: String, color: Color, onToast: (String) -> Unit) {
         ) { Text("📷 Enviar foto da quadra (1 por pessoa)") }
     }
 }
+
+private fun reais(cents: Int) = "R$ %d,%02d".format(cents / 100, cents % 100)
+
+private val LEVEL_LABEL = mapOf(
+    "todos" to "Todos os níveis",
+    "iniciante" to "Iniciante",
+    "intermediario" to "Intermediário",
+    "avancado" to "Avançado",
+)
+
+/** Nível, "procurando", rateio com Pix e código de convite do jogo. */
+@Composable
+fun OrganizationCard(m: com.ourinhosplay.app.data.MatchCard, isMember: Boolean, color: Color, onToast: (String) -> Unit) {
+    val context = LocalContext.current
+    val hasCost = (m.costCents ?: 0) > 0
+    val hasLevel = m.level != "todos"
+    val hasLooking = !m.lookingFor.isNullOrBlank()
+    val hasCode = !m.shortCode.isNullOrBlank()
+    if (!hasCost && !hasLevel && !hasLooking && !hasCode && !m.isPrivate) return
+
+    fun copy(label: String, text: String) {
+        val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText(label, text))
+        onToast("$label copiado.")
+    }
+
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (hasLevel || hasLooking || m.isPrivate) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (hasLevel) Text("Nível: ${LEVEL_LABEL[m.level] ?: m.level}", style = MaterialTheme.typography.bodyLarge)
+                if (hasLooking) Text("Procurando: ${m.lookingFor}", style = MaterialTheme.typography.bodyLarge, color = color)
+                if (m.isPrivate) Text("Jogo só com código", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (hasCost) {
+            val total = m.costCents!!
+            val people = maxOf(m.taken, 1)
+            val each = (total + people - 1) / people
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Rateio da quadra: ${reais(total)}", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "${reais(each)} por pessoa com $people no jogo" +
+                        if (m.capacity > m.taken) " (cai para ${reais((total + m.capacity - 1) / m.capacity)} se lotar)" else "",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (isMember && !m.pixKey.isNullOrBlank()) {
+                OutlinedButton(onClick = { copy("Chave Pix", m.pixKey!!) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Copiar Pix: ${m.pixKey}", maxLines = 1)
+                }
+            }
+        }
+        if (hasCode) {
+            OutlinedButton(onClick = { copy("Código do jogo", m.shortCode!!) }, modifier = Modifier.fillMaxWidth()) {
+                Text("Código do jogo: ${m.shortCode}  ·  copiar")
+            }
+        }
+    }
+}

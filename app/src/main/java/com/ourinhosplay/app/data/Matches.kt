@@ -21,7 +21,8 @@ enum class Sport(val key: String, val label: String, val emoji: String) {
     Biribol("biribol", "Biribol", "🏐"),
     Corrida("corrida", "Corrida", "🏃"),
     Ciclismo("ciclismo", "Ciclismo", "🚴"),
-    Caminhada("caminhada", "Caminhada", "🚶");
+    Caminhada("caminhada", "Caminhada", "🚶"),
+    TenisDeMesa("tenis_de_mesa", "Tênis de mesa", "🏓");
 
     companion object {
         fun from(key: String): Sport? = entries.firstOrNull { it.key == key }
@@ -62,6 +63,12 @@ data class MatchCard(
     val promoted: Boolean = false,
     @SerialName("route_start") val routeStart: String? = null,
     @SerialName("route_end") val routeEnd: String? = null,
+    @SerialName("cost_cents") val costCents: Int? = null,
+    @SerialName("pix_key") val pixKey: String? = null,
+    @SerialName("is_private") val isPrivate: Boolean = false,
+    val level: String = "todos",
+    @SerialName("looking_for") val lookingFor: String? = null,
+    @SerialName("short_code") val shortCode: String? = null,
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -70,15 +77,36 @@ object MatchRepository {
     private val db get() = Supabase.client
 
     /** Jogos futuros e abertos, do mais próximo ao mais distante; `sport` null = todos. */
-    suspend fun openMatches(sport: Sport?): List<MatchCard> =
-        db.from("matches_feed").select {
+    suspend fun openMatches(sport: Sport?): List<MatchCard> {
+        suspend fun query(hidePrivate: Boolean) = db.from("matches_feed").select {
             filter {
                 isIn("status", listOf("open", "full"))
                 gt("ends_at", java.time.Instant.now().toString())
                 if (sport != null) eq("sport", sport.key)
+                if (hidePrivate) eq("is_private", false)
             }
             order("starts_at", Order.ASCENDING)
         }.decodeList<MatchCard>()
+        return try {
+            query(hidePrivate = true)
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            query(hidePrivate = false) // banco sem a migration 0014
+        }
+    }
+
+    /** Acha um jogo pelo código curto de convite; devolve o id. */
+    suspend fun findByCode(code: String): String {
+        try {
+            return db.postgrest.rpc(
+                "find_match_by_code",
+                kotlinx.serialization.json.buildJsonObject { put("p_code", code.trim()) },
+            ).decodeAs<String>()
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            throw BusinessException(
+                e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Não achei esse código",
+            )
+        }
+    }
 }
 
 @Serializable
@@ -151,6 +179,11 @@ data class NewMatch(
     val capacity: Int,
     val creatorJoins: Boolean = true,
     val courtId: String? = null,
+    val costCents: Int? = null,
+    val pixKey: String = "",
+    val isPrivate: Boolean = false,
+    val level: String = "todos",
+    val lookingFor: String = "",
 )
 
 /** Erro de negócio vindo do banco (mensagem já em português, segura para exibir). */
@@ -184,6 +217,12 @@ object CreateMatchRepository {
                     put("p_capacity", m.capacity)
                     put("p_creator_joins", m.creatorJoins)
                     m.courtId?.let { put("p_court_id", it) }
+                    // Campos da migration 0014: só vão se foram usados (compatível com banco sem ela).
+                    m.costCents?.let { put("p_cost_cents", it) }
+                    if (m.pixKey.isNotBlank()) put("p_pix_key", m.pixKey)
+                    if (m.isPrivate) put("p_is_private", true)
+                    if (m.level != "todos") put("p_level", m.level)
+                    if (m.lookingFor.isNotBlank()) put("p_looking_for", m.lookingFor)
                 },
             )
         } catch (e: io.github.jan.supabase.exceptions.RestException) {

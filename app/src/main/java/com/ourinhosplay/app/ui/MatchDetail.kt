@@ -267,8 +267,10 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
         val end = parseMillis(m.endsAt)
         if (ui.isMember && !ui.ended && start != null && end != null) {
             MatchReminder.show(context, m.id, m.title, m.venueName, start, end)
+            Reminders.schedule(context, m.id, m.title, m.venueName, start)
         } else {
             MatchReminder.cancel(context, m.id)
+            Reminders.cancel(context, m.id)
         }
     }
 
@@ -326,6 +328,7 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
 
         Countdown(m.startsAt, m.endsAt, ui.ended)
         WeatherCard(m.startsAt, ui.ended)
+        OrganizationCard(m, ui.isMember, color, onToast)
 
         val me = ui.participants.firstOrNull { it.userId == ui.me }
         val startMs = parseMillis(m.startsAt)

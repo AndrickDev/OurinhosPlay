@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -190,6 +191,11 @@ private fun Wordmark(subtitle: String) {
 @Composable
 private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
     val ui by vm.feed.collectAsState()
+    var day by rememberSaveable { mutableIntStateOf(0) } // 0 todos, 1 hoje, 2 amanhã, 3 fim de semana
+    var askCode by remember { mutableStateOf(false) }
+    var code by remember { mutableStateOf("") }
+    var codeError by remember { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
         Wordmark("Quem joga hoje em Ourinhos?")
         LazyRow(
@@ -228,6 +234,27 @@ private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
             }
         }
 
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val labels = listOf("Qualquer dia", "Hoje", "Amanhã", "Fim de semana")
+            items(labels.size) { i ->
+                FilterChip(
+                    selected = day == i,
+                    onClick = { day = i },
+                    label = { Text(labels[i]) },
+                    colors = appChipColors(),
+                )
+            }
+            item {
+                androidx.compose.material3.AssistChip(
+                    onClick = { code = ""; codeError = null; askCode = true },
+                    label = { Text("Tenho um código") },
+                )
+            }
+        }
+
         // Agrupa por dia: cabeçalhos viram itens da mesma lista.
         val items: List<Any> = buildList {
             val featured = ui.matches.data.filter { it.isEvent && it.promoted && it.status != "cancelled" }
@@ -236,7 +263,17 @@ private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
                 addAll(featured)
             }
             var last: String? = null
-            ui.matches.data.filterNot { it in featured }.forEach { m ->
+            val today = java.time.LocalDate.now(java.time.ZoneId.systemDefault())
+            fun inDay(m: MatchCard): Boolean {
+                val d = localTime(m.startsAt)?.toLocalDate() ?: return true
+                return when (day) {
+                    1 -> d == today
+                    2 -> d == today.plusDays(1)
+                    3 -> d.dayOfWeek == java.time.DayOfWeek.SATURDAY || d.dayOfWeek == java.time.DayOfWeek.SUNDAY
+                    else -> true
+                }
+            }
+            ui.matches.data.filterNot { it in featured }.filter(::inDay).forEach { m ->
                 val label = dayGroupLabel(m.startsAt)
                 if (label != last) { add(label); last = label }
                 add(m)
@@ -258,17 +295,72 @@ private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
             }
         }
     }
+
+    if (askCode) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { askCode = false },
+            title = { Text("Entrar com código") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = code,
+                        onValueChange = { code = it.uppercase().take(6) },
+                        label = { Text("Código do jogo") },
+                        singleLine = true,
+                    )
+                    codeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = code.length >= 4,
+                    onClick = {
+                        scope.launch {
+                            runCatching { com.ourinhosplay.app.data.MatchRepository.findByCode(code) }
+                                .onSuccess { id -> askCode = false; onOpen(id) }
+                                .onFailure { e ->
+                                    codeError = (e as? com.ourinhosplay.app.data.BusinessException)?.message
+                                        ?: "Sem conexão. Tente de novo."
+                                }
+                        }
+                    },
+                ) { Text("Abrir jogo") }
+            },
+            dismissButton = { TextButton(onClick = { askCode = false }) { Text("Voltar") } },
+        )
+    }
 }
 
 @Composable
 private fun VenuesScreen(vm: HomeViewModel) {
     val state by vm.venues.collectAsState()
     val courts by vm.courts.collectAsState()
+    var sport by rememberSaveable { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
         Wordmark("Onde jogar")
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item {
+                FilterChip(selected = sport == null, onClick = { sport = null }, label = { Text("Todas") }, colors = appChipColors())
+            }
+            items(Sport.entries) { s ->
+                FilterChip(
+                    selected = sport == s.key,
+                    onClick = { sport = s.key },
+                    label = { Text(s.label) },
+                    leadingIcon = { Icon(s.icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = if (sport == s.key) Palette.Noite else s.color) },
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = s.color, selectedLabelColor = Palette.Noite),
+                )
+            }
+        }
         RemoteList(
-            state = state,
-            emptyTitle = "Nenhuma quadra cadastrada",
+            state = sport?.let { key ->
+                val sp = Sport.from(key)
+                state.copy(data = state.data.filter { v -> sp == null || venueOffers(v, courts.data, sp) })
+            } ?: state,
+            emptyTitle = "Nenhum local por aqui",
             emptyText = "As quadras da cidade aparecem aqui.",
             onRetry = vm::refreshVenues,
             topPadding = 16.dp,

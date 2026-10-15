@@ -63,6 +63,7 @@ val Sport.color: Color
         Sport.Corrida -> Palette.Coral
         Sport.Ciclismo -> Palette.Roxo
         Sport.Caminhada -> Palette.Areia
+        Sport.TenisDeMesa -> Palette.Fucsia
     }
 
 val Sport.icon: ImageVector
@@ -80,6 +81,7 @@ val Sport.icon: ImageVector
         Sport.Corrida -> Icons.AutoMirrored.Rounded.DirectionsRun
         Sport.Ciclismo -> Icons.Rounded.DirectionsBike
         Sport.Caminhada -> Icons.AutoMirrored.Rounded.DirectionsWalk
+        Sport.TenisDeMesa -> Icons.Rounded.SportsTennis
     }
 
 fun localTime(iso: String): ZonedDateTime? =

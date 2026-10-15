@@ -44,6 +44,7 @@ object Palette {
     val Coral = Color(0xFFFF7A8A)        // corrida
     val Roxo = Color(0xFFB388FF)         // ciclismo
     val Areia = Color(0xFFD9C7A0)        // caminhada
+    val Fucsia = Color(0xFFE879F9)       // tênis de mesa
 }
 
 private val Display = FontFamily(

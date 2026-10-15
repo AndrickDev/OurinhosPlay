@@ -100,6 +100,14 @@ data class CreateUi(
     val durationMin: Int = 90,
     val capacity: Int = 10,
     val creatorJoins: Boolean = true,
+    /** Valor total da quadra em reais (texto digitado); vazio = sem rateio. */
+    val costText: String = "",
+    val pixKey: String = "",
+    val isPrivate: Boolean = false,
+    val level: String = "todos",
+    val lookingFor: String = "",
+    /** 0 = jogo único; 4/8/12 = repete toda semana por N semanas. */
+    val repeatWeeks: Int = 0,
     val check: Check = Check.Idle,
     val busy: Boolean = false,
     val error: String? = null,
@@ -175,6 +183,12 @@ class CreateMatchViewModel : ViewModel() {
     fun setTitle(t: String) = _ui.update { it.copy(title = t.take(60)) }
     fun setDescription(t: String) = _ui.update { it.copy(description = t.take(300)) }
     fun setCreatorJoins(v: Boolean) = _ui.update { it.copy(creatorJoins = v) }
+    fun setCost(t: String) = _ui.update { it.copy(costText = t.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(8)) }
+    fun setPix(t: String) = _ui.update { it.copy(pixKey = t.take(80)) }
+    fun setPrivate(v: Boolean) = _ui.update { it.copy(isPrivate = v) }
+    fun setLevel(v: String) = _ui.update { it.copy(level = v) }
+    fun setLookingFor(t: String) = _ui.update { it.copy(lookingFor = t.take(60)) }
+    fun setRepeat(weeks: Int) = _ui.update { it.copy(repeatWeeks = weeks) }
     fun setCapacity(n: Int) = _ui.update { it.copy(capacity = n.coerceIn(1, 40)) }
 
     fun setDate(d: LocalDate) { _ui.update { it.copy(date = d) }; recheck() }
@@ -218,34 +232,54 @@ class CreateMatchViewModel : ViewModel() {
         if (!s.canPublish) return
         _ui.update { it.copy(busy = true, error = null) }
         viewModelScope.launch {
-            val r = runCatching {
-                CreateMatchRepository.create(
-                    NewMatch(
-                        venueId = s.venueId!!,
-                        sport = s.sport!!,
-                        title = s.title.trim(),
-                        description = s.description,
-                        startsAt = s.startsAt,
-                        durationMin = s.durationMin,
-                        capacity = s.capacity,
-                        creatorJoins = s.creatorJoins,
-                        courtId = s.courtId,
-                    ),
-                )
+            val total = if (s.repeatWeeks > 0) s.repeatWeeks else 1
+            val cents = s.costText.trim().replace(',', '.').toDoubleOrNull()?.let { Math.round(it * 100).toInt() }
+            var done = 0
+            var failure: Throwable? = null
+            for (i in 0 until total) {
+                val r = runCatching {
+                    CreateMatchRepository.create(
+                        NewMatch(
+                            venueId = s.venueId!!,
+                            sport = s.sport!!,
+                            title = s.title.trim(),
+                            description = s.description,
+                            startsAt = s.startsAt.plus(java.time.Duration.ofDays(7L * i)),
+                            durationMin = s.durationMin,
+                            capacity = s.capacity,
+                            creatorJoins = s.creatorJoins,
+                            courtId = s.courtId,
+                            costCents = cents,
+                            pixKey = s.pixKey.trim(),
+                            isPrivate = s.isPrivate,
+                            level = s.level,
+                            lookingFor = s.lookingFor.trim(),
+                        ),
+                    )
+                }
+                if (r.isSuccess) done++ else { failure = r.exceptionOrNull(); break }
             }
             _ui.update {
-                r.fold(
-                    onSuccess = { _ -> it.copy(busy = false, created = true) },
-                    onFailure = { e ->
-                        val msg = (e as? BusinessException)?.message ?: "Sem conexão. Tente de novo."
-                        // Perdeu a corrida para outro usuário: reconsulta para sugerir outro horário.
+                when {
+                    done == total -> it.copy(busy = false, created = true)
+                    done > 0 -> it.copy(
+                        busy = false,
+                        created = true,
+                        error = null,
+                    ).also { _ -> lastPartial = "Criamos $done de $total jogos. O próximo bateu em outro horário." }
+                    else -> {
+                        val msg = (failure as? BusinessException)?.message ?: "Sem conexão. Tente de novo."
                         it.copy(busy = false, error = msg)
-                    },
-                )
+                    }
+                }
             }
             if (!_ui.value.created) recheck()
         }
     }
+
+    /** Aviso para mostrar depois que um jogo recorrente foi criado só em parte. */
+    var lastPartial: String? = null
+        private set
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -444,6 +478,82 @@ fun CreateMatchScreen(
                     Text("Eu também vou jogar", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     androidx.compose.material3.Switch(checked = ui.creatorJoins, onCheckedChange = vm::setCreatorJoins)
                 }
+                // nível e o que está faltando
+                Text("Nível", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf("todos" to "Todos", "iniciante" to "Novato", "intermediario" to "Médio", "avancado" to "Craque").forEach { (key, label) ->
+                        FilterChip(
+                            selected = ui.level == key,
+                            onClick = { vm.setLevel(key) },
+                            colors = appChipColors(),
+                            label = { Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 1) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = ui.lookingFor,
+                    onValueChange = vm::setLookingFor,
+                    label = { Text("Procurando (ex.: goleiro, mais 2 jogadores)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                // rateio
+                OutlinedTextField(
+                    value = ui.costText,
+                    onValueChange = vm::setCost,
+                    label = { Text("Valor da quadra (R$) para dividir") },
+                    singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (ui.costText.isNotBlank()) {
+                    OutlinedTextField(
+                        value = ui.pixKey,
+                        onValueChange = vm::setPix,
+                        label = { Text("Sua chave Pix (só quem entra no jogo vê)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                // privado
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Só com código", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Não aparece no feed. Entra quem tem o código do jogo.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(checked = ui.isPrivate, onCheckedChange = vm::setPrivate)
+                }
+
+                // recorrência
+                Text("Repetir", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf(0 to "Não", 4 to "4 sem", 8 to "8 sem", 12 to "12 sem").forEach { (n, label) ->
+                        FilterChip(
+                            selected = ui.repeatWeeks == n,
+                            onClick = { vm.setRepeat(n) },
+                            colors = appChipColors(),
+                            label = { Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, maxLines = 1) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                if (ui.repeatWeeks > 0) {
+                    Text(
+                        "Cria um jogo por semana, no mesmo dia e horário, por ${ui.repeatWeeks} semanas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 if (showDescription) {
                     OutlinedTextField(
                         value = ui.description,

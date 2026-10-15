@@ -484,3 +484,13 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Bolas com volume**: cor e costura reais de cada modalidade, luz, borda escura e sombra no chão. Piso (madeira, areia) em tom sobre tom.
 - **Criar jogo** em 4 passos com cartões: modalidade → onde (lista com preço) → quando (data/hora/duração em grade) → detalhes.
 - **Benchmark** (Appito, Chega+, Dono da Bola): faltam ao OurinhosPlay rateio/pagamento, estatísticas, convite por link, jogo recorrente, jogo privado e notificações. Pontos fortes: anti-choque por quadra, agenda pública por quadra, locais reais da cidade, tempo, chat com frases, cheguei, eventos.
+
+### 13.6 Organização do jogo (migration 0014)
+- **Recorrência**: "Repetir" 4/8/12 semanas cria um jogo por semana (mesmo dia e horário); se uma semana bater em outro jogo, para e avisa quantos foram criados.
+- **Rateio**: valor da quadra (R$) + chave Pix opcional; o detalhe mostra "R$ X por pessoa" ao vivo e botão "Copiar Pix" (a chave só aparece para quem organiza ou está na lista).
+- **Só com código**: jogo fora do feed; entra quem tem o código curto (6 caracteres, derivado do id). "Tenho um código" no feed abre o jogo.
+- **Nível** (todos, novato, médio, craque) e **Procurando** (ex.: goleiro).
+- **Lembrete** local 1 h antes (AlarmManager; sem servidor). Push de verdade (vagas, cancelamento) depende de Firebase.
+- **Feed**: filtro por dia (qualquer, hoje, amanhã, fim de semana). **Locais**: filtro por modalidade.
+- **Perfil**: jogos feitos, organizados e esporte favorito (sem ranking).
+- **Tênis de mesa** como modalidade. Biribol é jogado na piscina (arte com água).
