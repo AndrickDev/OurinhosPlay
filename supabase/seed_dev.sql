@@ -1,16 +1,11 @@
 -- DADOS DE TESTE (só para ver a tela cheia, rolagem e cores). Não é migration.
--- Rodar no Supabase -> SQL Editor. Para limpar: rode o bloco "LIMPAR" no final.
---
--- 1) Locais citados em documentos públicos da prefeitura/Assembleia sobre Ourinhos.
---    Só o bairro é conhecido: CONFIRMAR endereço, esportes e uso antes de divulgar.
-insert into public.venues (name, kind, address, sports) values
-  ('Vila Odilon - quadras e campo', 'public', 'Vila Odilon, Ourinhos - SP', array['futebol', 'basquete', 'volei']),
-  ('Cohab Padre Murant - quadra',   'public', 'Conj. Hab. Padre Murant, Ourinhos - SP', array['futebol', 'basquete']),
-  ('Jardim Santos Dumont - quadra', 'public', 'Jardim Santos Dumont, Ourinhos - SP', array['futebol', 'volei']),
-  ('UNESP Ourinhos - quadra',       'public', 'Campus da UNESP, Ourinhos - SP', array['futebol', 'volei', 'basquete'])
-on conflict do nothing;
+-- Antes: rodar 0006_locais_ourinhos.sql e ter definido seu nome no app.
+-- Rodar no Supabase -> SQL Editor -> colar tudo -> Run. Pode rodar de novo: apaga os [Teste] antigos.
+-- Para só apagar os testes, rode apenas a linha abaixo, sozinha:
+--   delete from public.matches where title like '[Teste] %';
 
--- 2) Jogos de teste, todos criados pelo primeiro perfil com nome definido.
+delete from public.matches where title like '[Teste] %';
+
 do $$
 declare
   v_creator uuid;
@@ -19,6 +14,7 @@ declare
   v_venue   public.venues;
   v_sport   text;
   v_start   timestamptz;
+  v_match   uuid;
   v_titles  text[] := array[
     'Pelada de quinta', 'Racha do bairro', 'Vôlei de areia', 'Basquete 3x3', 'Society dos amigos',
     'Futebol feminino', 'Treino aberto', 'Torneio relâmpago', 'Jogo da firma', 'Racha da madrugada',
@@ -41,13 +37,11 @@ begin
     v_start := date_trunc('hour', now()) + interval '2 hours' + i * interval '5 hours';
 
     insert into public.matches (venue_id, creator_id, sport, title, starts_at, ends_at, capacity)
-    values (v_venue.id, v_creator, v_sport, '[Teste] ' || v_titles[i], v_start, v_start + interval '90 minutes', 6 + (i % 3) * 4);
+    values (v_venue.id, v_creator, v_sport, '[Teste] ' || v_titles[i], v_start, v_start + interval '90 minutes', 6 + (i % 3) * 4)
+    returning id into v_match;
 
     insert into public.participants (match_id, user_id)
-    select id, v_creator from public.matches where title = '[Teste] ' || v_titles[i] and creator_id = v_creator
+    values (v_match, v_creator)
     on conflict do nothing;
   end loop;
 end $$;
-
--- LIMPAR (rode quando quiser apagar os jogos de teste):
--- delete from public.matches where title like '[Teste] %';

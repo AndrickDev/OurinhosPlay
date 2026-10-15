@@ -153,7 +153,7 @@ fun SplashScreen(durationMs: Int = 2800) {
                 letters.forEachIndexed { i, ch ->
                     val w = widths[i]
                     val eaten = ((reachX - lx) / (w + d * 0.15f)).coerceIn(0f, 1f)
-                    val a = (appear * (1f - eaten)).coerceIn(0f, 1f)
+                    val a = (appear * (1f - eaten) * (1f - layGone)).coerceIn(0f, 1f)
                     if (a > 0.01f) {
                         drawText(
                             measurer, ch.toString(),

@@ -1,21 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- bola de futebol com o play no lugar do pentágono central -->
+    <group android:scaleX="1.22" android:scaleY="1.22" android:pivotX="54" android:pivotY="55">
+    <!-- botão play: degradê amarelo -> laranja -> vermelho -->
+    <path android:pathData="M66,64m-17.5,0a17.5,17.5 0,1 1,35 0a17.5,17.5 0,1 1,-35 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="50"
+                android:startY="82"
+                android:endX="82"
+                android:endY="46"
+                android:type="linear">
+                <item android:offset="0" android:color="#FFC928" />
+                <item android:offset="0.5" android:color="#FF8A1F" />
+                <item android:offset="1" android:color="#F23B3B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#FFFFFF" android:pathData="M60.5,55.5L60.5,72.5L75,64Z" />
+    <!-- recorte azul-noite para separar a bola do botão -->
+    <path android:fillColor="#0C0F2B" android:pathData="M42,46m-19.2,0a19.2,19.2 0,1 1,38.4 0a19.2,19.2 0,1 1,-38.4 0" />
+    <!-- bola de futebol -->
+    <path android:fillColor="#FFFFFF" android:pathData="M42,46m-17,0a17,17 0,1 1,34 0a17,17 0,1 1,-34 0" />
+    <path android:fillColor="#0C0F2B" android:pathData="M42,39.8L47.9,44.1L45.6,51L38.4,51L36.1,44.1Z" />
     <path
-        android:fillColor="#F2F4FF"
-        android:pathData="M54,54m-29,0a29,29 0,1 1,58 0a29,29 0,1 1,-58 0" />
-    <!-- remendos -->
-    <path android:fillColor="#0C0F2B" android:pathData="M54,33m-4.4,0a4.4,4.4 0,1 1,8.8 0a4.4,4.4 0,1 1,-8.8 0" />
-    <path android:fillColor="#0C0F2B" android:pathData="M74,47.5m-4.4,0a4.4,4.4 0,1 1,8.8 0a4.4,4.4 0,1 1,-8.8 0" />
-    <path android:fillColor="#0C0F2B" android:pathData="M66.3,71m-4.4,0a4.4,4.4 0,1 1,8.8 0a4.4,4.4 0,1 1,-8.8 0" />
-    <path android:fillColor="#0C0F2B" android:pathData="M41.7,71m-4.4,0a4.4,4.4 0,1 1,8.8 0a4.4,4.4 0,1 1,-8.8 0" />
-    <path android:fillColor="#0C0F2B" android:pathData="M34,47.5m-4.4,0a4.4,4.4 0,1 1,8.8 0a4.4,4.4 0,1 1,-8.8 0" />
-    <!-- play -->
-    <path
-        android:fillColor="#FF5B1F"
-        android:pathData="M47,41L47,67L71,54Z" />
+        android:strokeColor="#0C0F2B"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M42,39.8L42,33.5M47.9,44.1L53.9,42.1M45.6,51L49.3,56.1M38.4,51L34.7,56.1M36.1,44.1L30.1,42.1" />
+    <path android:fillColor="#0C0F2B" android:pathData="M42,33.5m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#0C0F2B" android:pathData="M53.9,42.1m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#0C0F2B" android:pathData="M49.3,56.1m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#0C0F2B" android:pathData="M34.7,56.1m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#0C0F2B" android:pathData="M30.1,42.1m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    </group>
 </vector>
