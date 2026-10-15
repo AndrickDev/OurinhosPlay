@@ -14,12 +14,12 @@ Hoje, montar uma pelada na cidade depende de grupos de WhatsApp: ninguém sabe q
 
 | Para quem joga | Para quem organiza | Para quem cuida das quadras |
 |---|---|---|
-| Ver jogos abertos por esporte, ver quem vai, entrar com um toque | Criar o jogo em poucos passos e acompanhar a lista de confirmados | Ter a agenda de cada quadra visível e poder bloquear horários |
+| Ver jogos abertos por esporte, ver quem vai, entrar com um toque | Criar o jogo em poucos passos, editar, cancelar e jogar de novo | Cadastrar quadras e preços, ver a agenda e bloquear horários |
 
 Três ideias sustentam o produto:
 
 1. **Agenda única por quadra.** O app mantém a própria agenda. Quem reserva primeiro, dentro do app, leva o horário.
-2. **Regra no banco, não na tela.** O anti-choque é uma restrição do PostgreSQL. Mesmo que dois usuários toquem em "publicar" no mesmo segundo, só um passa.
+2. **Regra no banco, não na tela.** O anti-choque é uma restrição `EXCLUDE USING gist` do PostgreSQL. Mesmo que dois usuários toquem em "publicar" no mesmo segundo, só um passa.
 3. **Fricção mínima.** Entrar com a conta Google, escolher um nome e jogar. Sem cadastro longo, sem SMS, sem custo de mensagens.
 
 ## Como funciona
@@ -39,18 +39,22 @@ Cada jogador tem um nome de exibição seguido de uma tag numérica atribuída p
 
 ## Estado atual
 
-O projeto está no início. O que existe e o que vem a seguir:
+O projeto está em desenvolvimento ativo, em fase de validação em aparelho real. O que já funciona:
 
 | Etapa | Entrega | Situação |
 |---|---|---|
 | 0 | Ambiente, build e pipeline de instalação | Concluída |
-| 1 | Login com Google, perfil com nome e tag, sessão persistente | Implementada, em validação |
-| 2 | Cadastro de quadras, feed de jogos com filtro por esporte, navegação | Planejada |
-| 3 | Criar jogo com validação de choque de horário | Planejada |
-| 4 | Detalhe do jogo, confirmar e sair, feedback tátil e sonoro | Planejada |
-| 5 | Meus jogos, revanche, compartilhar | Planejada |
-| 6 | Painel administrativo e bloqueio de horários | Planejada |
-| 7 | Acessibilidade, notificações, acabamento | Planejada |
+| 1 | Login com Google, perfil com nome e tag, sessão persistente | Concluída |
+| 2 | Navegação, feed de jogos com filtro por esporte, lista de quadras | Concluída |
+| 3 | Criar jogo com validação de choque de horário | Concluída |
+| 4 | Detalhe do jogo, confirmar e sair, efeitos sonoros e visuais | Concluída |
+| 5 | Meus jogos, jogar de novo, compartilhar, editar e cancelar | Concluída |
+| 6 | Painel administrativo: quadras, preços e bloqueio de horários | Concluída |
+| 7 | Acessibilidade e acabamento | Em andamento |
+
+Também entregues: identidade visual esportiva, splash animada, locais reais de Ourinhos e quadras gratuitas ou pagas com preço por hora.
+
+Ainda não existe: liberar esportes adicionais (tênis, padel, natação), eventos de corrida, verificação com TalkBack e em celular físico, e distribuição pela Play Store.
 
 O detalhamento completo de telas, fluxos e modelo de dados está em [docs/PRD.md](docs/PRD.md).
 
@@ -61,16 +65,23 @@ O detalhamento completo de telas, fluxos e modelo de dados está em [docs/PRD.md
 | Aplicativo | Kotlin, Jetpack Compose, Material 3 | Interface nativa Android, declarativa e acessível |
 | Autenticação | Supabase Auth, Credential Manager, Google Sign-In | Um toque, sem custo por SMS |
 | Banco de dados | PostgreSQL via Supabase, com Row Level Security | Regras de acesso e anti-choque aplicadas no servidor |
-| Comunicação | supabase-kt (Auth, Postgrest), Ktor | Cliente oficial da comunidade para Kotlin |
+| Comunicação | supabase-kt (Auth, Postgrest), Ktor | Cliente da comunidade para Kotlin |
 | Build | Gradle 8.9, AGP 8.7, Kotlin 2.0 | Versões fixadas por catálogo em `gradle/libs.versions.toml` |
 | Alvo | Android 8.0 ou superior (API 26), compilado para API 35 | Cobre a grande maioria dos aparelhos em uso |
 
-O iOS está previsto para uma fase futura e o plano de retomada está em [docs/IOS-HANDOFF.md](docs/IOS-HANDOFF.md). Todo o backend é reaproveitado; só a interface é reescrita.
+## Modelo de dados
+
+Seis tabelas no schema `public`, todas com Row Level Security: `profiles`, `venues` (locais), `courts` (quadras de cada local), `matches`, `participants` e `venue_blocks` (horários bloqueados).
+
+- **Anti-choque:** restrição `EXCLUDE USING gist` sobre o par quadra e intervalo de tempo em `matches`, com `tstzrange`. A regra vale para qualquer cliente, não só para o app.
+- **Escrita por RPC:** criar, entrar, sair, editar, cancelar e excluir jogo passam por funções do servidor (`create_match`, `join_match`, `leave_match`, `update_match`, `cancel_match`, `delete_match`). Operações administrativas conferem `is_admin()`.
+- **Migrações:** nove arquivos versionados em [supabase/migrations](supabase/migrations), aplicados em ordem.
 
 ## Segurança em poucas linhas
 
 - O app carrega apenas a chave pública do Supabase. A proteção real vem das políticas de Row Level Security.
 - Escrita em `profiles` só acontece por função do servidor; o cliente não consegue alterar o próprio papel nem trocar o nome depois de definido.
+- O papel `admin` só é concedido direto no banco, nunca pelo cliente; as telas administrativas dependem de RPCs que validam o papel.
 - Chaves e IDs ficam em `secrets.properties`, fora do controle de versão.
 
 ## Rodando o projeto
@@ -87,7 +98,7 @@ Preencha `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `GOOGLE_WEB_CLIENT_ID`. Os valore
 
 **2. Criar as tabelas**
 
-No painel do Supabase, abra o SQL Editor e execute o conteúdo de [supabase/migrations/0001_profiles.sql](supabase/migrations/0001_profiles.sql).
+No painel do Supabase, abra o SQL Editor e execute, em ordem, os arquivos de [supabase/migrations](supabase/migrations) de `0001` a `0007` e `0009`. O `0008_jogos_de_teste_OPCIONAL.sql` só insere jogos de exemplo e pode ser pulado.
 
 **3. Rodar no emulador**
 
@@ -103,8 +114,8 @@ Para usar um celular físico em vez do emulador, siga [docs/DEPLOY-CELULAR.md](d
 ```
 app/src/main/java/com/ourinhosplay/app/
   auth/        login com Google e estado de sessão
-  data/        cliente Supabase e repositórios
-  ui/          telas e tema (Compose)
+  data/        cliente Supabase, perfil e partidas
+  ui/          telas, componentes, tema e efeitos (Compose)
 supabase/
   migrations/  SQL versionado do banco
 docs/          produto, ambiente, deploy e iOS
@@ -119,7 +130,7 @@ scripts/       emulador e instalação
 | [Ambiente Windows](docs/SETUP-WINDOWS.md) | Instalação e verificação das ferramentas |
 | [Emulador no PC](docs/EMULADOR-PC.md) | Rodar sem celular |
 | [Celular físico](docs/DEPLOY-CELULAR.md) | Instalar o APK direto no aparelho |
-| [Handoff iOS](docs/IOS-HANDOFF.md) | Plano para a versão iPhone |
+| [Handoff iOS](docs/IOS-HANDOFF.md) | Plano para a versão iPhone, ainda não iniciada |
 
 ## Licença
 
