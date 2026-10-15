@@ -9,7 +9,7 @@ if (-not $env:JAVA_HOME) { $env:JAVA_HOME = [Environment]::GetEnvironmentVariabl
 & .\gradlew.bat :app:assembleBeta --console=plain
 if ($LASTEXITCODE -ne 0) { throw 'Build falhou.' }
 
-$apk = Join-Path $root 'app\build\outputs\apk\debug\app-debug.apk'
+$apk = Join-Path $root 'app\build\outputs\apk\beta\app-beta.apk'
 $dest = Join-Path ([Environment]::GetFolderPath('Desktop')) 'OurinhosPlay-teste.apk'
 Copy-Item $apk $dest -Force
 Write-Host "OK: $dest" -ForegroundColor Green
