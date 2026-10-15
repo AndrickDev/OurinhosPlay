@@ -45,6 +45,10 @@ data class MatchCard(
     val status: String,
     val description: String? = null,
     @SerialName("creator_id") val creatorId: String? = null,
+    @SerialName("court_id") val courtId: String? = null,
+    @SerialName("court_name") val courtName: String? = null,
+    @SerialName("court_is_free") val courtIsFree: Boolean? = null,
+    @SerialName("court_price_cents") val courtPriceCents: Int? = null,
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -96,6 +100,27 @@ object VenueRepository {
 }
 
 @Serializable
+data class Court(
+    val id: String,
+    @SerialName("venue_id") val venueId: String,
+    val name: String,
+    val sports: List<String> = emptyList(),
+    @SerialName("is_free") val isFree: Boolean = true,
+    @SerialName("price_per_hour_cents") val pricePerHourCents: Int? = null,
+    val audience: String? = null,
+) {
+    val priceLabel: String
+        get() = if (isFree) "Grátis" else pricePerHourCents?.let { "R$ %d,%02d/h".format(it / 100, it % 100) } ?: "Pago"
+}
+
+object CourtRepository {
+    private val db get() = Supabase.client
+
+    suspend fun all(): List<Court> =
+        db.from("courts").select { order("name", Order.ASCENDING) }.decodeList<Court>()
+}
+
+@Serializable
 data class Availability(
     @SerialName("is_free") val isFree: Boolean,
     val reason: String? = null,
@@ -112,6 +137,7 @@ data class NewMatch(
     val durationMin: Int,
     val capacity: Int,
     val creatorJoins: Boolean = true,
+    val courtId: String? = null,
 )
 
 /** Erro de negócio vindo do banco (mensagem já em português, segura para exibir). */
@@ -120,13 +146,14 @@ class BusinessException(message: String) : Exception(message)
 object CreateMatchRepository {
     private val db get() = Supabase.client
 
-    suspend fun availability(venueId: String, startsAt: java.time.Instant, durationMin: Int): Availability =
+    suspend fun availability(venueId: String, startsAt: java.time.Instant, durationMin: Int, courtId: String? = null): Availability =
         db.postgrest.rpc(
             "venue_availability",
             kotlinx.serialization.json.buildJsonObject {
                 put("p_venue_id", venueId)
                 put("p_starts_at", startsAt.toString())
                 put("p_duration_min", durationMin)
+                courtId?.let { put("p_court_id", it) }
             },
         ).decodeList<Availability>().first()
 
@@ -143,6 +170,7 @@ object CreateMatchRepository {
                     put("p_duration_min", m.durationMin)
                     put("p_capacity", m.capacity)
                     put("p_creator_joins", m.creatorJoins)
+                    m.courtId?.let { put("p_court_id", it) }
                 },
             )
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
@@ -214,6 +242,73 @@ object MatchDetailRepository {
     private suspend fun call(fn: String, id: String) {
         try {
             db.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject { put("p_match_id", id) })
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            throw BusinessException(
+                e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Não foi possível concluir",
+            )
+        }
+    }
+}
+
+@Serializable
+data class VenueBlock(
+    val id: String,
+    @SerialName("venue_id") val venueId: String,
+    @SerialName("court_id") val courtId: String? = null,
+    @SerialName("starts_at") val startsAt: String,
+    @SerialName("ends_at") val endsAt: String,
+    val reason: String? = null,
+)
+
+/** Operações do painel admin. O banco confere `is_admin()` em toda chamada. */
+object AdminRepository {
+    private val db get() = Supabase.client
+
+    suspend fun blocks(): List<VenueBlock> =
+        db.from("venue_blocks").select {
+            filter { gt("ends_at", java.time.Instant.now().toString()) }
+            order("starts_at", Order.ASCENDING)
+        }.decodeList<VenueBlock>()
+
+    suspend fun addBlock(
+        venueId: String,
+        courtId: String?,
+        startsAt: java.time.Instant,
+        endsAt: java.time.Instant,
+        reason: String,
+    ) = rpc("admin_add_block") {
+        put("p_venue_id", venueId)
+        courtId?.let { put("p_court_id", it) }
+        put("p_starts_at", startsAt.toString())
+        put("p_ends_at", endsAt.toString())
+        put("p_reason", reason)
+    }
+
+    suspend fun removeBlock(id: String) = rpc("admin_remove_block") { put("p_block_id", id) }
+
+    suspend fun saveCourt(
+        venueId: String,
+        courtId: String?,
+        name: String,
+        sports: List<String>,
+        isFree: Boolean,
+        priceCents: Int?,
+        audience: String,
+    ) = rpc("admin_save_court") {
+        put("p_venue_id", venueId)
+        courtId?.let { put("p_court_id", it) }
+        put("p_name", name)
+        put("p_sports", kotlinx.serialization.json.JsonArray(sports.map { kotlinx.serialization.json.JsonPrimitive(it) }))
+        put("p_is_free", isFree)
+        priceCents?.let { put("p_price_cents", it) }
+        put("p_audience", audience)
+    }
+
+    suspend fun deleteCourt(id: String) = rpc("admin_delete_court") { put("p_court_id", id) }
+
+    private suspend fun rpc(fn: String, build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) {
+        try {
+            db.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject(build))
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
             throw BusinessException(
                 e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Não foi possível concluir",

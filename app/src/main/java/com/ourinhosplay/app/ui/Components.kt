@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SportsBasketball
@@ -125,7 +126,7 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
             .clickable(onClick = onClick),
     ) {
         Column(
-            Modifier.width(96.dp).fillMaxHeight().background(color).padding(vertical = 12.dp),
+            Modifier.widthIn(min = 96.dp).fillMaxHeight().background(color).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

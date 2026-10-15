@@ -2,6 +2,8 @@ package com.ourinhosplay.app.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ourinhosplay.app.data.Court
+import com.ourinhosplay.app.data.CourtRepository
 import com.ourinhosplay.app.data.MatchCard
 import com.ourinhosplay.app.data.MatchRepository
 import com.ourinhosplay.app.data.Sport
@@ -32,12 +34,21 @@ class HomeViewModel : ViewModel() {
     private val _venues = MutableStateFlow(Remote<Venue>())
     val venues: StateFlow<Remote<Venue>> = _venues.asStateFlow()
 
+    private val _courts = MutableStateFlow(Remote<Court>())
+    val courts: StateFlow<Remote<Court>> = _courts.asStateFlow()
+
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+
     private val _mine = MutableStateFlow(Remote<MatchCard>())
     val mine: StateFlow<Remote<MatchCard>> = _mine.asStateFlow()
 
     init {
         refreshFeed()
         refreshVenues()
+        viewModelScope.launch {
+            _isAdmin.value = runCatching { com.ourinhosplay.app.data.MatchDetailRepository.isAdmin() }.getOrDefault(false)
+        }
     }
 
     fun refreshMine() {
@@ -75,6 +86,10 @@ class HomeViewModel : ViewModel() {
     fun refreshVenues() {
         _venues.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
+            _courts.value = runCatching { CourtRepository.all() }.fold(
+                onSuccess = { Remote(loading = false, data = it) },
+                onFailure = { Remote(loading = false, error = friendlyError(it)) },
+            )
             _venues.value = runCatching { VenueRepository.all() }.fold(
                 onSuccess = { Remote(loading = false, data = it) },
                 onFailure = { Remote(loading = false, error = friendlyError(it)) },
@@ -84,7 +99,7 @@ class HomeViewModel : ViewModel() {
 }
 
 /** Nunca expõe a mensagem crua: ela pode conter URL e cabeçalhos (inclusive o token). */
-private fun friendlyError(e: Throwable): String = when (e) {
+internal fun friendlyError(e: Throwable): String = when (e) {
     is java.io.IOException -> "Sem conexão. Confira a internet e tente de novo."
     else -> "Erro ao falar com o servidor. Tente de novo em instantes."
 }

@@ -447,3 +447,11 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - Abertura animada (`SplashScreen`): a bola (o "O") rola engolindo "urinhos", chega ao "P", "lay" some e o P vira o play, fechando no monograma OP.
 - Logo vertical responsivo (`AppLogo`): "Ourinhos" com o O de bola em cima, "Play" com triângulo embaixo.
 - Ícone do app: bola de futebol com o play no lugar do pentágono central.
+
+## 13. Estado em 15/10/2026 (sprint 6 e qualidade)
+- **Quadras (0009):** tabela `courts` (várias por local, grátis/pago com preço/hora, público), anti-choque por quadra, `matches_feed` com quadra e preço. Cada local ganha uma "Quadra principal"; o admin ajusta.
+- **Painel admin (Perfil > Painel admin, só `role='admin'`):** cancelar jogos, cadastrar/editar/remover quadras e preços, bloquear/liberar horários (por quadra ou local inteiro). Tudo via RPCs que conferem `is_admin()`.
+- **Criar jogo** mais enxuto: local em linha rolável, quadra/esporte só quando necessário, descrição opcional, botão fixo.
+- **Acessibilidade:** testado com fonte 1,6×; marca (splash) não escala com a fonte; botões −/+ com descrição; rótulos da barra não duplicam leitura.
+- **Locais:** 0006/0007 trazem os locais do levantamento (ourinhos_esportes.md). Esportes novos (tênis, padel, natação...) ficam guardados e entram ao liberar no app.
+- **Pendente:** liberar novos esportes; eventos de corrida (A/B no mapa) e divulgação; verificação em celular real e TalkBack.

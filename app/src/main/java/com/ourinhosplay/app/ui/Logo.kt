@@ -130,7 +130,7 @@ fun SplashScreen(durationMs: Int = 2800) {
         fontFamily = ScoreFont,
         fontWeight = FontWeight.ExtraBold,
         fontStyle = FontStyle.Italic,
-        fontSize = 50.sp,
+        fontSize = with(density) { 50.dp.toSp() }, // marca não cresce com a fonte do sistema
         color = Palette.Giz,
     )
 

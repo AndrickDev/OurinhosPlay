@@ -57,6 +57,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ourinhosplay.app.data.Court
 import com.ourinhosplay.app.data.MatchCard
 import com.ourinhosplay.app.data.Sport
 import com.ourinhosplay.app.data.Venue
@@ -64,7 +65,7 @@ import java.time.Instant
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     Feed("Jogos", Icons.Rounded.SportsScore),
-    Mine("Meus jogos", Icons.Rounded.EventAvailable),
+    Mine("Agenda", Icons.Rounded.EventAvailable),
     Venues("Quadras", Icons.Rounded.Place),
     Profile("Perfil", Icons.Rounded.Person),
 }
@@ -77,10 +78,11 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     var creating by rememberSaveable { mutableStateOf(false) }
     var openMatch by rememberSaveable { mutableStateOf<String?>(null) }
     var template by remember { mutableStateOf<MatchCard?>(null) }
+    var adminOpen by rememberSaveable { mutableStateOf(false) }
 
     // Voltar do sistema fecha detalhe/criação em vez de sair do app.
-    androidx.activity.compose.BackHandler(enabled = creating || openMatch != null) {
-        if (creating) creating = false else openMatch = null
+    androidx.activity.compose.BackHandler(enabled = creating || openMatch != null || adminOpen) {
+        if (adminOpen) adminOpen = false else if (creating) creating = false else openMatch = null
     }
 
     openMatch?.let { id ->
@@ -88,12 +90,25 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
         return
     }
     val venues by vm.venues.collectAsState()
+    val courts by vm.courts.collectAsState()
+    val isAdmin by vm.isAdmin.collectAsState()
+
+    if (adminOpen) {
+        AdminScreen(
+            venues = venues.data,
+            courts = courts.data,
+            onCatalogChanged = { vm.refreshVenues() },
+            onClose = { adminOpen = false; vm.refreshFeed() },
+        )
+        return
+    }
 
     if (creating) {
         val createVm: CreateMatchViewModel = viewModel(key = "create-$createKey")
         LaunchedEffect(createKey) { template?.let { createVm.prefill(it) } }
         CreateMatchScreen(
             venues = venues.data,
+            courts = courts.data,
             onClose = { creating = false; template = null },
             onCreated = {
                 creating = false
@@ -129,8 +144,8 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
                     NavigationBarItem(
                         selected = tab == t.ordinal,
                         onClick = { tab = t.ordinal },
-                        icon = { Icon(t.icon, contentDescription = t.label) },
-                        label = { Text(t.label) },
+                        icon = { Icon(t.icon, contentDescription = null) },
+                        label = { Text(t.label, maxLines = 1) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Palette.Noite,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -152,7 +167,7 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
                     creating = true
                 })
                 Tab.Venues -> VenuesScreen(vm)
-                Tab.Profile -> ProfileScreen(displayName, onSignOut)
+                Tab.Profile -> ProfileScreen(displayName, onSignOut, isAdmin) { adminOpen = true }
             }
         }
     }
@@ -243,6 +258,7 @@ private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
 @Composable
 private fun VenuesScreen(vm: HomeViewModel) {
     val state by vm.venues.collectAsState()
+    val courts by vm.courts.collectAsState()
     Column(Modifier.fillMaxSize()) {
         Wordmark("Onde jogar")
         RemoteList(
@@ -251,7 +267,7 @@ private fun VenuesScreen(vm: HomeViewModel) {
             emptyText = "As quadras da cidade aparecem aqui.",
             onRetry = vm::refreshVenues,
             topPadding = 16.dp,
-        ) { VenueRow(it) }
+        ) { v -> VenueRow(v, courts.data.filter { it.venueId == v.id }) }
     }
 }
 
@@ -303,7 +319,7 @@ private fun Centered(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun VenueRow(v: Venue) {
+private fun VenueRow(v: Venue, courts: List<Court>) {
     val context = LocalContext.current
     val sports = v.sports.mapNotNull { Sport.from(it) }
     Column(
@@ -323,6 +339,12 @@ private fun VenueRow(v: Venue) {
             )
         }
         Text(v.address, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        courts.forEach { c ->
+            Text(
+                c.name + " · " + c.priceLabel + (c.audience?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         if (sports.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 sports.forEach { s ->
@@ -341,7 +363,7 @@ private fun VenueRow(v: Venue) {
 }
 
 @Composable
-private fun ProfileScreen(displayName: String, onSignOut: () -> Unit) = Centered {
+private fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, onAdmin: () -> Unit) = Centered {
     Box(
         Modifier.size(88.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center,
@@ -353,6 +375,9 @@ private fun ProfileScreen(displayName: String, onSignOut: () -> Unit) = Centered
         )
     }
     Text(displayName, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 16.dp))
+    if (isAdmin) {
+        androidx.compose.material3.Button(onClick = onAdmin, modifier = Modifier.padding(top = 24.dp)) { Text("Painel admin") }
+    }
     OutlinedButton(onClick = onSignOut, modifier = Modifier.padding(top = 24.dp)) { Text("Sair") }
 }
 

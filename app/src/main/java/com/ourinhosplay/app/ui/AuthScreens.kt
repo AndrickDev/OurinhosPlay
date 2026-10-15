@@ -118,27 +118,46 @@ fun LoginScreen(
 @Composable
 fun NameScreen(ui: AuthUi, onSave: (String) -> Unit, onSignOut: () -> Unit) {
     var name by remember { mutableStateOf("") }
+    val ready = !ui.busy && name.trim().length >= 2
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Como a galera te chama?", style = MaterialTheme.typography.headlineSmall)
+        AppLogo(fontSize = 32.sp)
         Text(
-            "Você ganha um número só seu (ex.: Joao#0042) e o nome não muda depois.",
+            "Como a galera te chama?",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(top = 32.dp),
+        )
+        Text(
+            "Seu nome aparece nos jogos, com um número só seu (ex.: Joao#0042). Depois de salvo, ele não muda.",
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
         OutlinedTextField(
-            value = name, onValueChange = { if (it.length <= 30) name = it },
-            label = { Text("Nome de exibição") }, singleLine = true,
+            value = name,
+            onValueChange = { if (it.length <= 30) name = it },
+            label = { Text("Nome de exibição") },
+            supportingText = { Text("${name.trim().length}/30 · mínimo 2 letras") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Words,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { if (ready) onSave(name) }),
             modifier = Modifier.fillMaxWidth(),
         )
         Button(
             onClick = { onSave(name) },
-            enabled = !ui.busy && name.trim().length >= 2,
+            enabled = ready,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 52.dp),
         ) { Text("Continuar") }
+        if (ui.busy) CircularProgressIndicator(Modifier.padding(top = 16.dp))
         TextButton(onClick = onSignOut, enabled = !ui.busy) { Text("Sair") }
         Messages(ui)
     }
