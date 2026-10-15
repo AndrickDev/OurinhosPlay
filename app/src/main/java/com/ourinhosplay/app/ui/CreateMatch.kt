@@ -1,6 +1,9 @@
 package com.ourinhosplay.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -64,6 +67,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 private val ZONE: ZoneId get() = ZoneId.systemDefault()
+
+/** O local oferece a modalidade se ele (ou alguma quadra dele) a lista. */
+internal fun venueOffers(v: Venue, courts: List<Court>, s: Sport): Boolean =
+    s.key in v.sports || courts.any { it.venueId == v.id && s.key in it.sports }
 
 private fun defaultStart(): LocalDateTime =
     LocalDateTime.now(ZONE).plusHours(2).withMinute(0).withSecond(0).withNano(0)
@@ -145,6 +152,21 @@ class CreateMatchViewModel : ViewModel() {
     }
 
     fun setSport(s: Sport) = _ui.update { it.copy(sport = s) }
+
+    /** Escolhe a modalidade e limpa o local/quadra que não oferecem ela. */
+    fun chooseSport(s: Sport, venues: List<Venue>, courts: List<Court>) {
+        val cur = _ui.value.venueId?.let { id -> venues.firstOrNull { it.id == id } }
+        val keep = cur != null && venueOffers(cur, courts, s)
+        _ui.update {
+            if (keep) it.copy(sport = s)
+            else it.copy(sport = s, venueId = null, courtId = null, needsCourt = false, check = Check.Idle)
+        }
+        if (keep) {
+            // quadra escolhida precisa aceitar a modalidade
+            val courtOk = _ui.value.courtId?.let { cid -> courts.firstOrNull { it.id == cid }?.sports?.contains(s.key) } ?: true
+            if (!courtOk) _ui.update { it.copy(courtId = null) }
+        }
+    }
     fun setTitle(t: String) = _ui.update { it.copy(title = t.take(60)) }
     fun setDescription(t: String) = _ui.update { it.copy(description = t.take(300)) }
     fun setCreatorJoins(v: Boolean) = _ui.update { it.copy(creatorJoins = v) }
@@ -258,9 +280,44 @@ fun CreateMatchScreen(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            Section("O que vão jogar?") {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Sport.entries.forEach { s ->
+                        val on = ui.sport == s
+                        androidx.compose.foundation.layout.Column(
+                            Modifier
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(if (on) s.color else MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { vm.chooseSport(s, venues, courts) }
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                                .semantics { contentDescription = s.label + if (on) ", selecionado" else "" },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            androidx.compose.material3.Icon(
+                                s.icon, contentDescription = null,
+                                tint = if (on) Palette.Noite else s.color,
+                                modifier = Modifier.size(30.dp),
+                            )
+                            Text(
+                                s.label,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (on) Palette.Noite else MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+
             Section("Onde") {
+                val shown = venues.filter { v -> ui.sport != null && venueOffers(v, courts, ui.sport!!) }
+                if (ui.sport == null) {
+                    Text("Escolha a modalidade para ver os locais.", style = MaterialTheme.typography.bodyMedium)
+                } else if (shown.isEmpty()) {
+                    Text("Nenhum local cadastrado para ${ui.sport!!.label} ainda.", style = MaterialTheme.typography.bodyMedium)
+                }
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    venues.filter { v -> v.sports.any { Sport.from(it) != null } }.forEach { v ->
+                    shown.forEach { v ->
                         FilterChip(
                             selected = ui.venueId == v.id,
                             onClick = { vm.setVenue(v, courts) },
@@ -292,22 +349,6 @@ fun CreateMatchScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-
-            if (venueSports.isNotEmpty()) {
-                Section("Esporte") {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        venueSports.forEach { s ->
-                            FilterChip(
-                                selected = ui.sport == s,
-                                onClick = { vm.setSport(s) },
-                                label = { Text(s.label) },
-                                leadingIcon = { androidx.compose.material3.Icon(s.icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = if (ui.sport == s) Palette.Noite else s.color) },
-                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(selectedContainerColor = s.color, selectedLabelColor = Palette.Noite),
-                            )
-                        }
-                    }
-                }
             }
 
             OutlinedTextField(

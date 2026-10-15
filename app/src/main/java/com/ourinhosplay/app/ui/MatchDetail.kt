@@ -225,6 +225,13 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
     val snackbar = remember { SnackbarHostState() }
     val haptics = LocalHapticFeedback.current
     val match = ui.match
+    // O ViewModel sobrevive entre aberturas: só comemora o que acontece com a tela aberta.
+    val baseCelebrations = remember { ui.celebrations }
+    val baseLeaves = remember { ui.leaves }
+    val baseArrivals = remember { ui.arrivals }
+    val celebrate = ui.celebrations - baseCelebrations
+    val leftNow = ui.leaves - baseLeaves
+    val arrivedNow = ui.arrivals - baseArrivals
 
     LaunchedEffect(ui.deleted) { if (ui.deleted) onBack() }
     LaunchedEffect(ui.toast) {
@@ -239,8 +246,8 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
     ) { /* a notificação é refeita pelo efeito abaixo quando a permissão muda */ }
 
     // "Bora lá": vibra, apita e pede permissão de notificação para o cronômetro.
-    LaunchedEffect(ui.celebrations) {
-        if (ui.celebrations > 0) {
+    LaunchedEffect(celebrate) {
+        if (celebrate > 0) {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             if (!MatchReminder.canNotify(context) && android.os.Build.VERSION.SDK_INT >= 33) {
                 askNotifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -249,8 +256,8 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
         }
     }
 
-    LaunchedEffect(ui.leaves) { if (ui.leaves > 0) Sfx.fire(context, Sound.Down) }
-    LaunchedEffect(ui.arrivals) { if (ui.arrivals > 0) Sfx.fire(context, Sound.Chime) }
+    LaunchedEffect(leftNow) { if (leftNow > 0) Sfx.fire(context, Sound.Down) }
+    LaunchedEffect(arrivedNow) { if (arrivedNow > 0) Sfx.fire(context, Sound.Chime) }
 
     // Quem está no jogo ganha a notificação com cronômetro; quem sai (ou jogo acabou) perde.
     val reminderKey = Triple(ui.isMember, ui.ended, match?.id)
@@ -284,8 +291,8 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
                     }
                 }
             }
-            Confetti(trigger = ui.celebrations, accent = match?.let { Sport.from(it.sport)?.color } ?: Palette.Pista)
-            GoalBanner(trigger = ui.celebrations)
+            Confetti(trigger = celebrate, accent = match?.let { Sport.from(it.sport)?.color } ?: Palette.Pista)
+            GoalBanner(trigger = celebrate)
         }
     }
 }
@@ -296,15 +303,17 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
     val color = sport?.color ?: Palette.Pista
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Capa do jogo: o esporte tinge a tela inteira da partida.
-        Row(
+        Box(
             Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.large)
-                .background(color)
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .background(color),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SportArt(sport, Modifier.matchParentSize())
+            Column(
+                Modifier.fillMaxWidth(0.64f).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (sport != null) Icon(sport.icon, contentDescription = null, tint = Palette.Noite, modifier = Modifier.size(20.dp))
                 Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelLarge, color = Palette.Noite)
@@ -313,7 +322,6 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
             Text(m.venueName, style = MaterialTheme.typography.titleMedium, color = Palette.Noite)
             Text(whenFull(m.startsAt, m.endsAt), style = MaterialTheme.typography.bodyLarge, color = Palette.Noite)
             }
-            Mascot(sport, m.id, size = 88.dp)
         }
 
         Countdown(m.startsAt, m.endsAt, ui.ended)

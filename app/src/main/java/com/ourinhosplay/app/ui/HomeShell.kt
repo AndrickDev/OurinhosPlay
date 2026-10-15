@@ -66,7 +66,7 @@ import java.time.Instant
 private enum class Tab(val label: String, val icon: ImageVector) {
     Feed("Jogos", Icons.Rounded.SportsScore),
     Mine("Agenda", Icons.Rounded.EventAvailable),
-    Venues("Quadras", Icons.Rounded.Place),
+    Venues("Locais", Icons.Rounded.Place),
     Profile("Perfil", Icons.Rounded.Person),
 }
 
@@ -298,7 +298,7 @@ private fun <T> RemoteList(
             OutlinedButton(onClick = onRetry) { Text("Tentar de novo") }
         }
         state.data.isEmpty() -> Centered {
-            Mascot(null, emptyTitle, size = 96.dp, ink = Palette.Neblina)
+            SportArt(null, Modifier.size(110.dp), ink = Palette.Neblina)
             Text(emptyTitle, style = MaterialTheme.typography.headlineSmall)
             Text(
                 emptyText,

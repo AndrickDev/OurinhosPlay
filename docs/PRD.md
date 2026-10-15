@@ -472,3 +472,9 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 ### 13.3 Áudio e figurinhas
 - **Apito**: gravação real de apito de juiz (CC0, SpliceSound, via Wikimedia Commons), `res/raw/apito_juiz.wav`, recortado e normalizado. Os demais sons seguem sintetizados.
 - **Figurinhas**: um atleta minimalista fazendo o movimento de cada esporte (chute, cortada, arremesso, saque, braçada, corrida, pedalada, caminhada), com contorno claro de adesivo. Substituiu os bichinhos.
+
+### 13.4 Arte e fluxo (15/10/2026)
+- **Arte da modalidade** (`SportArt`): "quadro tático" tom sobre tom (linhas de quadra, rede, raias, pista, roda, trilha) com a bola/equipamento como único elemento sólido. Substituiu as figurinhas.
+- **Criar jogo** começa pela modalidade (cartões rolantes); os locais mostrados já são os que oferecem a modalidade.
+- Aba "Quadras" virou **"Locais"** (inclui parques, piscinas e orla).
+- Correção: "Bora lá"/confete/som só disparam quando a ação acontece com a tela aberta (antes repetia ao reabrir um jogo em que a pessoa já estava).
