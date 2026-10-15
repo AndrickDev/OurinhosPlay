@@ -1,5 +1,5 @@
 -- DADOS DE TESTE (só para ver a tela cheia, rolagem e cores). Não é migration.
--- Antes: rodar 0006_locais_ourinhos.sql e ter definido seu nome no app.
+-- Antes: rodar 0006 e 0007 e ter definido seu nome no app.
 -- Rodar no Supabase -> SQL Editor -> colar tudo -> Run. Pode rodar de novo: apaga os [Teste] antigos.
 -- Para só apagar os testes, rode apenas a linha abaixo, sozinha:
 --   delete from public.matches where title like '[Teste] %';
@@ -27,12 +27,15 @@ begin
     raise exception 'Defina o nome no app antes de rodar o seed';
   end if;
 
-  select array_agg(id order by name) into v_venues from public.venues;
+  select array_agg(id order by name) into v_venues from public.venues
+   where sports && array['futebol', 'volei', 'basquete', 'beach_tennis'];
   v_n := array_length(v_venues, 1);
 
   for i in 1..14 loop
     select * into v_venue from public.venues where id = v_venues[1 + (i % v_n)];
-    v_sport := v_venue.sports[1 + (i % array_length(v_venue.sports, 1))];
+    select s into v_sport from unnest(v_venue.sports) s
+     where s in ('futebol', 'volei', 'basquete', 'beach_tennis')
+     order by s offset (i % (select count(*) from unnest(v_venue.sports) x where x in ('futebol', 'volei', 'basquete', 'beach_tennis'))) limit 1;
     -- espaçados de 5 em 5 horas: nunca se sobrepõem, em nenhuma quadra
     v_start := date_trunc('hour', now()) + interval '2 hours' + i * interval '5 hours';
 

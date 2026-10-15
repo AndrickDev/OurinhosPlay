@@ -223,7 +223,7 @@ fun CreateMatchScreen(
 
         Text("Quadra", style = MaterialTheme.typography.titleSmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            venues.forEach { v ->
+            venues.filter { v -> v.sports.any { Sport.from(it) != null } }.forEach { v ->
                 FilterChip(
                     selected = ui.venueId == v.id,
                     onClick = { vm.setVenue(v) },
