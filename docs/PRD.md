@@ -459,3 +459,12 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 ### 13.1 Esportes e eventos (migration 0010)
 - 12 modalidades no app (cada uma com cor e ícone próprios).
 - **Eventos** (só admin cria, aba Eventos do painel): título, modalidade, local de encontro, largada e chegada (texto), data, duração, até 500 vagas. Não ocupam quadra (fora do anti-choque). Com "destaque" ligado aparecem no topo do feed; o detalhe tem "Ver trajeto no Maps" (largada -> chegada), sem mapa embutido nem GPS ao vivo.
+
+### 13.2 Social e conta (migrations 0011 e 0012)
+- **Cheguei** (visto): abre 1 h antes do jogo; participantes mostram "✓ chegou".
+- **Chat rápido**: só frases prontas (13), sem texto livre; 1 foto por pessoa (JPEG pequeno, até ~300 KB, guardado no banco); lido só por quem está na lista; some 6 h após o fim do jogo (RLS + limpeza a cada envio). Não é P2P de verdade: passa pelo Supabase, que é mais simples e permite expirar e moderar.
+- **Amigos**: adicionar por Nome#0000 (um lado só, sem pedido de aceite); ★ nos jogos.
+- **Tempo**: previsão Open-Meteo (sem chave) para a hora do jogo, até 16 dias.
+- **Bichinhos**: animal sorteado pelo id do jogo, rosto variando, equipamento do esporte, duas cores.
+- **Admin > Pessoas**: nome, e-mail, remover conta de vez (apaga login, participações e jogos criados). Não remove admin nem a si mesmo.
+- **APK de teste**: build type `beta` (sem debug, otimizado, ~3 MB), mesmo applicationId e assinatura do debug. Play Store: keystore próprio + novo cliente OAuth Android (pacote `com.ourinhosplay.app`).

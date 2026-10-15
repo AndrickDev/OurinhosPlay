@@ -216,12 +216,19 @@ object MatchDetailRepository {
     suspend fun detail(id: String): MatchCard? =
         db.from("matches_feed").select { filter { eq("id", id) } }.decodeSingleOrNull<MatchCard>()
 
-    suspend fun participants(id: String): List<Participant> =
-        db.from("participants")
-            .select(io.github.jan.supabase.postgrest.query.Columns.raw("user_id, joined_at, arrived_at, profiles(display_name, tag)")) {
+    /** Tenta com `arrived_at` (migration 0012); se a coluna ainda não existe, cai para a consulta antiga. */
+    suspend fun participants(id: String): List<Participant> {
+        suspend fun query(columns: String) = db.from("participants")
+            .select(io.github.jan.supabase.postgrest.query.Columns.raw(columns)) {
                 filter { eq("match_id", id) }
                 order("joined_at", Order.ASCENDING)
             }.decodeList<Participant>()
+        return try {
+            query("user_id, joined_at, arrived_at, profiles(display_name, tag)")
+        } catch (e: io.github.jan.supabase.exceptions.RestException) {
+            query("user_id, joined_at, profiles(display_name, tag)")
+        }
+    }
 
     fun currentUserId(): String? =
         db.auth.currentUserOrNull()?.id

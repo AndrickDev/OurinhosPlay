@@ -6,7 +6,7 @@ Set-Location $root
 
 if (-not $env:JAVA_HOME) { $env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User') }
 
-& .\gradlew.bat :app:assembleDebug --console=plain
+& .\gradlew.bat :app:assembleBeta --console=plain
 if ($LASTEXITCODE -ne 0) { throw 'Build falhou.' }
 
 $apk = Join-Path $root 'app\build\outputs\apk\debug\app-debug.apk'

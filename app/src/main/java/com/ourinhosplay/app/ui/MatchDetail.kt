@@ -272,14 +272,15 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
     val color = sport?.color ?: Palette.Pista
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         // Capa do jogo: o esporte tinge a tela inteira da partida.
-        Column(
+        Row(
             Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.large)
                 .background(color)
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (sport != null) Icon(sport.icon, contentDescription = null, tint = Palette.Noite, modifier = Modifier.size(20.dp))
                 Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelLarge, color = Palette.Noite)
@@ -287,6 +288,8 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
             Text(m.title, style = MaterialTheme.typography.headlineLarge, color = Palette.Noite)
             Text(m.venueName, style = MaterialTheme.typography.titleMedium, color = Palette.Noite)
             Text(whenFull(m.startsAt, m.endsAt), style = MaterialTheme.typography.bodyLarge, color = Palette.Noite)
+            }
+            Mascot(sport, m.id, size = 88.dp)
         }
 
         Countdown(m.startsAt, m.endsAt, ui.ended)

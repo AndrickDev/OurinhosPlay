@@ -298,6 +298,7 @@ private fun <T> RemoteList(
             OutlinedButton(onClick = onRetry) { Text("Tentar de novo") }
         }
         state.data.isEmpty() -> Centered {
+            Mascot(null, emptyTitle, size = 96.dp, ink = Palette.Neblina)
             Text(emptyTitle, style = MaterialTheme.typography.headlineSmall)
             Text(
                 emptyText,
