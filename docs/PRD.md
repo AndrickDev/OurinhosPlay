@@ -427,3 +427,11 @@ Avaliação: **vale como campo opcional**, não obrigatório. É relevante em qu
 - [ ] **Quem já chegou:** lista mostra quem fez check-in ("3 de 10 no local").
 - [ ] **Chamada no vestiário:** organizador manda aviso curto para os confirmados ("chegando em 10 min").
 - [ ] Som de apito e "GOOOL!" já na entrada (feito); apito diferente de fim de jogo (futuro).
+
+### Identidade visual (sprint de design, out/2026)
+- **Conceito:** cores vêm das superfícies do esporte (pista, grama, areia, mar, madeira) sobre azul-noite de estádio. Cada esporte tinge o próprio card, capa e botão "Bora lá".
+- **Paleta:** Noite `#0C0F2B`, Arquibancada `#151A45`, Tribuna `#1F2560`, Giz `#F2F4FF`, Neblina `#9AA2D6`, Pista `#FF5B1F` (primária), Bola `#E6FF3D` (ao vivo/GOOOL), Grama `#2BD965`, Sol `#FFC928`, Madeira `#FF9A3D`, Mar `#22D3EE`.
+- **Tipografia:** Barlow Condensed ExtraBold Itálico (placar, títulos, horários) + Barlow (texto). Fontes OFL em `res/font`.
+- **Peça-assinatura:** o card-ingresso (`MatchTicket`): horário gigante na cor do esporte e vagas como pílulas acesas (`SlotBar`).
+- **Novo esporte:** adicionar em `Sport` (cor + ícone) e liberar no `check` de `matches.sport`.
+- **Pendências de design:** telas de login/nome ainda no estilo padrão; ícone do app; estado "ao vivo" no feed; área de eventos e divulgação (corridas, torneios) com destaque no topo do feed.

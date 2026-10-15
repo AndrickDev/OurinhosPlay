@@ -5,6 +5,15 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -251,53 +260,83 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
 @Composable
 private fun Details(ui: DetailUi, m: MatchCard) {
     val sport = Sport.from(m.sport)
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("${sport?.emoji.orEmpty()} ${sport?.label ?: m.sport}", style = MaterialTheme.typography.labelLarge)
-        Text(m.title, style = MaterialTheme.typography.headlineMedium)
-        Text(m.venueName, style = MaterialTheme.typography.titleMedium)
-        Text(whenFull(m.startsAt, m.endsAt), style = MaterialTheme.typography.bodyLarge)
-        if (!m.description.isNullOrBlank()) {
-            Text(m.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+    val color = sport?.color ?: Palette.Pista
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Capa do jogo: o esporte tinge a tela inteira da partida.
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.large)
+                .background(color)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (sport != null) Icon(sport.icon, contentDescription = null, tint = Palette.Noite, modifier = Modifier.size(20.dp))
+                Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelLarge, color = Palette.Noite)
+            }
+            Text(m.title, style = MaterialTheme.typography.headlineLarge, color = Palette.Noite)
+            Text(m.venueName, style = MaterialTheme.typography.titleMedium, color = Palette.Noite)
+            Text(whenFull(m.startsAt, m.endsAt), style = MaterialTheme.typography.bodyLarge, color = Palette.Noite)
         }
+
         Countdown(m.startsAt, m.endsAt, ui.ended)
-        Text(
-            when {
-                m.status == "cancelled" -> "Jogo cancelado"
-                ui.ended -> "Jogo encerrado"
-                else -> "${m.taken}/${m.capacity} confirmados"
-            },
-            color = MaterialTheme.colorScheme.primary,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+
+        if (!m.description.isNullOrBlank()) {
+            Text(m.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
+            Text(
+                when {
+                    m.status == "cancelled" -> "Cancelado"
+                    ui.ended -> "Encerrado"
+                    else -> "${m.taken}/${m.capacity}"
+                },
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+
         if (!ui.ended) {
             val context = LocalContext.current
             OutlinedButton(
                 onClick = { shareMatch(context, m) },
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-            ) { Text("📤 Chamar a galera") }
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            ) {
+                Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text("  Chamar a galera")
+            }
         }
+
         Text(
             "Quem vai",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 16.dp),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(top = 12.dp),
         )
         ui.participants.forEach { p ->
             val name = p.profiles?.fullName?.ifBlank { null } ?: "Jogador"
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(
-                    Modifier.padding(vertical = 4.dp),
+                    Modifier.size(38.dp).clip(CircleShape).background(color),
                     contentAlignment = Alignment.Center,
-                ) { Text("🙂") }
-                Text(
-                    buildString {
-                        append(name)
-                        if (p.userId == m.creatorId) append("  · organizador")
-                        if (p.userId == ui.me) append("  · você")
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                ) {
+                    Text(
+                        name.first().uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Palette.Noite,
+                    )
+                }
+                Column {
+                    Text(name, style = MaterialTheme.typography.bodyLarge)
+                    val tag = buildList {
+                        if (p.userId == m.creatorId) add("organizador")
+                        if (p.userId == ui.me) add("você")
+                    }.joinToString(" · ")
+                    if (tag.isNotEmpty()) {
+                        Text(tag, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }
@@ -306,22 +345,36 @@ private fun Details(ui: DetailUi, m: MatchCard) {
 @Composable
 private fun ActionBar(ui: DetailUi, onJoin: () -> Unit, onLeave: () -> Unit) {
     val m = ui.match ?: return
+    val color = Sport.from(m.sport)?.color ?: Palette.Pista
     val full = m.status == "full" || m.spotsLeft == 0
-    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+    val big = Modifier.fillMaxWidth().height(60.dp)
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(16.dp)) {
         when {
-            ui.ended -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+            ui.ended -> Button(onClick = {}, enabled = false, modifier = big) {
                 Text(if (ui.cancelled) "Cancelado" else "Encerrado")
             }
-            ui.isMember -> OutlinedButton(onClick = onLeave, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
+            ui.isMember -> OutlinedButton(onClick = onLeave, enabled = !ui.busy, modifier = big) {
                 Text("Sair do jogo")
             }
-            full -> Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) { Text("Lotado") }
-            else -> Button(onClick = onJoin, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
-                Text(if (ui.busy) "Entrando…" else "Bora lá!")
+            full -> Button(onClick = {}, enabled = false, modifier = big) { Text("Lotado") }
+            else -> Button(
+                onClick = onJoin,
+                enabled = !ui.busy,
+                modifier = big,
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
+            ) {
+                Text(
+                    if (ui.busy) "Entrando…" else "Bora lá!",
+                    fontFamily = ScoreFont,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    fontSize = 28.sp,
+                )
             }
         }
     }
 }
+
 
 private class Piece(val angle: Float, val speed: Float, val size: Float, val color: Color)
 
@@ -407,7 +460,7 @@ private fun Countdown(startIso: String, endIso: String, ended: Boolean) {
         label,
         style = MaterialTheme.typography.headlineSmall,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
+        color = Palette.Bola,
         modifier = Modifier.padding(top = 8.dp),
     )
 }
@@ -452,7 +505,10 @@ private fun ManageCard(ui: DetailUi, m: MatchCard, vm: MatchDetailViewModel) {
     var confirmCancel by remember { androidx.compose.runtime.mutableStateOf(false) }
     var confirmDelete by remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    androidx.compose.material3.Card(Modifier.fillMaxWidth().padding(top = 24.dp)) {
+    androidx.compose.material3.Card(
+        Modifier.fillMaxWidth().padding(top = 24.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 if (ui.isCreator) "Você organiza esse jogo" else "Administração",

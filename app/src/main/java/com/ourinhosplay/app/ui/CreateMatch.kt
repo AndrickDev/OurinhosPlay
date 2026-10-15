@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -226,6 +227,7 @@ fun CreateMatchScreen(
                 FilterChip(
                     selected = ui.venueId == v.id,
                     onClick = { vm.setVenue(v) },
+                    colors = appChipColors(),
                     label = { Text(v.name) },
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
@@ -240,7 +242,9 @@ fun CreateMatchScreen(
                     FilterChip(
                         selected = ui.sport == s,
                         onClick = { vm.setSport(s) },
-                        label = { Text("${s.emoji} ${s.label}") },
+                        label = { Text(s.label) },
+                        leadingIcon = { androidx.compose.material3.Icon(s.icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = if (ui.sport == s) Palette.Noite else s.color) },
+                        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(selectedContainerColor = s.color, selectedLabelColor = Palette.Noite),
                     )
                 }
             }
@@ -266,6 +270,7 @@ fun CreateMatchScreen(
                 FilterChip(
                     selected = ui.durationMin == m,
                     onClick = { vm.setDuration(m) },
+                    colors = appChipColors(),
                     label = { Text("$m min") },
                 )
             }
