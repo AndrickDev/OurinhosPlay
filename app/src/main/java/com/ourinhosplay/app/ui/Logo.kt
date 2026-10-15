@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -53,25 +54,45 @@ private fun pentagon(cx: Float, cy: Float, r: Float, startDeg: Float = -90f): Pa
         close()
     }
 
-/** Bola de futebol: pentágono central, cinco remendos na borda e costuras. */
+/** Bola de futebol: pentágono central, cinco remendos cortados pela borda e costuras. */
 private fun DrawScope.drawBall(center: Offset, radius: Float, rotationDeg: Float) {
     rotate(rotationDeg, pivot = center) {
         drawCircle(Palette.Giz, radius, center)
         val seam = Palette.Noite
-        // costuras do pentágono central até os remendos
-        for (k in 0 until 5) {
-            val a = Math.toRadians((-90.0 + k * 72.0))
-            val from = Offset(center.x + radius * 0.34f * cos(a).toFloat(), center.y + radius * 0.34f * sin(a).toFloat())
-            val to = Offset(center.x + radius * 0.66f * cos(a).toFloat(), center.y + radius * 0.66f * sin(a).toFloat())
-            drawLine(seam, from, to, strokeWidth = radius * 0.07f)
+        val stroke = radius * 0.06f
+        fun pt(r: Float, deg: Double) = Offset(
+            center.x + r * cos(Math.toRadians(deg)).toFloat(),
+            center.y + r * sin(Math.toRadians(deg)).toFloat(),
+        )
+        val clip = Path().apply { addOval(androidx.compose.ui.geometry.Rect(center, radius)) }
+        clipPath(clip) {
+            val inner = pentagon(center.x, center.y, radius * 0.30f)
+            drawPath(inner, seam)
+            val outer = (0 until 5).map { k ->
+                val th = -90.0 + 72.0 * k
+                val c = pt(radius * 0.88f, th)
+                val v = (0 until 5).map { j ->
+                    val a = th + 180.0 + 72.0 * j
+                    Offset(c.x + radius * 0.31f * cos(Math.toRadians(a)).toFloat(), c.y + radius * 0.31f * sin(Math.toRadians(a)).toFloat())
+                }
+                Triple(c, v, th)
+            }
+            outer.forEach { (_, v, th) ->
+                drawPath(Path().apply {
+                    v.forEachIndexed { i, o -> if (i == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }
+                    close()
+                }, seam)
+                drawLine(seam, pt(radius * 0.30f, th), v[0], strokeWidth = stroke)
+            }
+            for (k in 0 until 5) {
+                val a = outer[k]
+                val b = outer[(k + 1) % 5]
+                val va = a.second.minBy { (it - b.first).getDistance() }
+                val vb = b.second.minBy { (it - a.first).getDistance() }
+                drawLine(seam, va, vb, strokeWidth = stroke)
+            }
         }
-        drawPath(pentagon(center.x, center.y, radius * 0.36f), seam)
-        for (k in 0 until 5) {
-            val a = Math.toRadians((-90.0 + k * 72.0 + 36.0))
-            val c = Offset(center.x + radius * 0.74f * cos(a).toFloat(), center.y + radius * 0.74f * sin(a).toFloat())
-            drawPath(pentagon(c.x, c.y, radius * 0.19f, startDeg = Math.toDegrees(a).toFloat() + 180f), seam)
-        }
-        drawCircle(seam, radius, center, style = androidx.compose.ui.graphics.drawscope.Stroke(radius * 0.06f))
+        drawCircle(seam, radius, center, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke * 0.8f))
     }
 }
 
