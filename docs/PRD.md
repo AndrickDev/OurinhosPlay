@@ -478,3 +478,9 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Criar jogo** começa pela modalidade (cartões rolantes); os locais mostrados já são os que oferecem a modalidade.
 - Aba "Quadras" virou **"Locais"** (inclui parques, piscinas e orla).
 - Correção: "Bora lá"/confete/som só disparam quando a ação acontece com a tela aberta (antes repetia ao reabrir um jogo em que a pessoa já estava).
+
+### 13.5 Refino visual (15/10/2026, 2)
+- **Futevôlei** como modalidade própria (ao lado do futebol, amarelo-limão; migration 0013).
+- **Bolas com volume**: cor e costura reais de cada modalidade, luz, borda escura e sombra no chão. Piso (madeira, areia) em tom sobre tom.
+- **Criar jogo** em 4 passos com cartões: modalidade → onde (lista com preço) → quando (data/hora/duração em grade) → detalhes.
+- **Benchmark** (Appito, Chega+, Dono da Bola): faltam ao OurinhosPlay rateio/pagamento, estatísticas, convite por link, jogo recorrente, jogo privado e notificações. Pontos fortes: anti-choque por quadra, agenda pública por quadra, locais reais da cidade, tempo, chat com frases, cheguei, eventos.

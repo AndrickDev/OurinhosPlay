@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 
 enum class Sport(val key: String, val label: String, val emoji: String) {
     Futebol("futebol", "Futebol", "⚽"),
+    Futevolei("futevolei", "Futevôlei", "🏐"),
     Volei("volei", "Vôlei", "🏐"),
     Basquete("basquete", "Basquete", "🏀"),
     BeachTennis("beach_tennis", "Beach Tennis", "🎾"),

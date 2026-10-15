@@ -4,7 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -265,31 +270,35 @@ fun CreateMatchScreen(
         }
     }
 
-    val venueCourts = courts.filter { it.venueId == ui.venueId }
+    val venueCourts = courts.filter { it.venueId == ui.venueId && (ui.sport == null || ui.sport!!.key in it.sports) }
     val chosenCourt = venueCourts.firstOrNull { it.id == ui.courtId }
-    val venueSports = (chosenCourt?.sports ?: venues.firstOrNull { it.id == ui.venueId }?.sports.orEmpty())
-        .mapNotNull { Sport.from(it) }
+    val accent = ui.sport?.color ?: MaterialTheme.colorScheme.primary
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text("Criar jogo", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
             TextButton(onClick = onClose) { Text("Cancelar") }
         }
 
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Section("O que vão jogar?") {
+            // 1 — modalidade
+            StepCard("1", "O que vão jogar?") {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Sport.entries.forEach { s ->
                         val on = ui.sport == s
-                        androidx.compose.foundation.layout.Column(
+                        Column(
                             Modifier
+                                .width(92.dp)
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(if (on) s.color else MaterialTheme.colorScheme.surfaceVariant)
+                                .background(if (on) s.color else MaterialTheme.colorScheme.background)
                                 .clickable { vm.chooseSport(s, venues, courts) }
-                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                                .padding(vertical = 12.dp, horizontal = 6.dp)
                                 .semantics { contentDescription = s.label + if (on) ", selecionado" else "" },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -301,36 +310,55 @@ fun CreateMatchScreen(
                             )
                             Text(
                                 s.label,
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = if (on) Palette.Noite else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
                             )
                         }
                     }
                 }
             }
 
-            Section("Onde") {
-                val shown = venues.filter { v -> ui.sport != null && venueOffers(v, courts, ui.sport!!) }
-                if (ui.sport == null) {
-                    Text("Escolha a modalidade para ver os locais.", style = MaterialTheme.typography.bodyMedium)
-                } else if (shown.isEmpty()) {
-                    Text("Nenhum local cadastrado para ${ui.sport!!.label} ainda.", style = MaterialTheme.typography.bodyMedium)
+            // 2 — local e quadra
+            StepCard("2", "Onde") {
+                val sport = ui.sport
+                val shown = venues.filter { v -> sport != null && venueOffers(v, courts, sport) }
+                when {
+                    sport == null -> Text("Escolha a modalidade para ver os locais.", style = MaterialTheme.typography.bodyMedium)
+                    shown.isEmpty() -> Text("Nenhum local cadastrado para ${sport.label} ainda.", style = MaterialTheme.typography.bodyMedium)
                 }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    shown.forEach { v ->
-                        FilterChip(
-                            selected = ui.venueId == v.id,
-                            onClick = { vm.setVenue(v, courts) },
-                            colors = appChipColors(),
-                            label = { Text(v.name) },
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
+                shown.forEach { v ->
+                    val on = ui.venueId == v.id
+                    val cs = courts.filter { it.venueId == v.id && sport != null && sport.key in it.sports }
+                    val price = when {
+                        cs.isEmpty() -> if (v.kind == "public") "Pública" else "Particular"
+                        cs.all { it.isFree } -> "Grátis"
+                        else -> cs.mapNotNull { it.pricePerHourCents }.minOrNull()
+                            ?.let { "a partir de R$ %d,%02d/h".format(it / 100, it % 100) } ?: "Paga"
+                    }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(if (on) accent.copy(alpha = 0.22f) else MaterialTheme.colorScheme.background)
+                            .border(1.5.dp, if (on) accent else Color.Transparent, MaterialTheme.shapes.medium)
+                            .clickable { vm.setVenue(v, courts) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(v.name, style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                price + if (cs.size > 1) " · ${cs.size} quadras" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (on) Text("✓", color = accent, style = MaterialTheme.typography.titleMedium)
                     }
                 }
-            }
-
-            if (venueCourts.size > 1) {
-                Section("Quadra") {
+                if (venueCourts.size > 1) {
+                    Text("Quadra", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 4.dp))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         venueCourts.forEach { c ->
                             FilterChip(
@@ -342,72 +370,92 @@ fun CreateMatchScreen(
                             )
                         }
                     }
+                } else if (chosenCourt != null) {
+                    Text(
+                        chosenCourt.name + " · " + chosenCourt.priceLabel + (chosenCourt.audience?.let { " · $it" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-            } else if (chosenCourt != null) {
-                Text(
-                    chosenCourt.name + " · " + chosenCourt.priceLabel + (chosenCourt.audience?.let { " · $it" } ?: ""),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
 
-            OutlinedTextField(
-                value = ui.title,
-                onValueChange = vm::setTitle,
-                label = { Text("Título (ex.: Pelada de quinta)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Section("Quando") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedButton(onClick = { pickDate = true }) { Text(ui.date.format(DATE_FMT)) }
-                    OutlinedButton(onClick = { pickTime = true }) { Text(ui.time.format(TIME_FMT)) }
+            // 3 — quando
+            StepCard("3", "Quando") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = { pickDate = true },
+                        modifier = Modifier.weight(1.4f).heightIn(min = 48.dp),
+                    ) { Text(ui.date.format(DATE_FMT), maxLines = 1) }
+                    OutlinedButton(
+                        onClick = { pickTime = true },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    ) { Text(ui.time.format(TIME_FMT)) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     listOf(60, 90, 120).forEach { m ->
                         FilterChip(
                             selected = ui.durationMin == m,
                             onClick = { vm.setDuration(m) },
                             colors = appChipColors(),
-                            label = { Text("$m min") },
+                            label = { Text("$m min", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
                 AvailabilityBanner(ui, onSuggestion = vm::applySuggestion)
             }
 
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Vagas", style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        if (ui.creatorJoins) "Você ocupa uma delas." else "Você só organiza.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                OutlinedButton(
-                    onClick = { vm.setCapacity(ui.capacity - 1) },
-                    modifier = Modifier.semantics { contentDescription = "Menos uma vaga" },
-                ) { Text("−") }
-                Text("${ui.capacity}", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 12.dp))
-                OutlinedButton(
-                    onClick = { vm.setCapacity(ui.capacity + 1) },
-                    modifier = Modifier.semantics { contentDescription = "Mais uma vaga" },
-                ) { Text("+") }
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Eu também vou jogar", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                androidx.compose.material3.Switch(checked = ui.creatorJoins, onCheckedChange = vm::setCreatorJoins)
-            }
-
-            if (showDescription) {
+            // 4 — detalhes
+            StepCard("4", "Detalhes") {
                 OutlinedTextField(
-                    value = ui.description,
-                    onValueChange = vm::setDescription,
-                    label = { Text("Descrição") },
+                    value = ui.title,
+                    onValueChange = vm::setTitle,
+                    label = { Text("Nome do jogo (ex.: Pelada de quinta)") },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            } else {
-                TextButton(onClick = { showDescription = true }) { Text("+ Adicionar descrição") }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Vagas", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            if (ui.creatorJoins) "Você ocupa uma delas." else "Você só organiza.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { vm.setCapacity(ui.capacity - 1) },
+                        modifier = Modifier.size(48.dp).semantics { contentDescription = "Menos uma vaga" },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    ) { Text("−", style = MaterialTheme.typography.titleLarge) }
+                    Text(
+                        "${ui.capacity}",
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(48.dp),
+                    )
+                    OutlinedButton(
+                        onClick = { vm.setCapacity(ui.capacity + 1) },
+                        modifier = Modifier.size(48.dp).semantics { contentDescription = "Mais uma vaga" },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                    ) { Text("+", style = MaterialTheme.typography.titleLarge) }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Eu também vou jogar", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(checked = ui.creatorJoins, onCheckedChange = vm::setCreatorJoins)
+                }
+                if (showDescription) {
+                    OutlinedTextField(
+                        value = ui.description,
+                        onValueChange = vm::setDescription,
+                        label = { Text("Descrição") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    TextButton(onClick = { showDescription = true }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                        Text("+ Adicionar descrição")
+                    }
+                }
             }
         }
 
@@ -497,9 +545,24 @@ private fun hourLabel(iso: String): String? = parseInstant(iso)?.atZone(ZONE)?.f
 private fun dayHourLabel(iso: String): String = parseInstant(iso)?.atZone(ZONE)?.format(DAY_HOUR_FMT) ?: iso
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun StepCard(step: String, title: String, content: @Composable () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.size(24.dp).clip(androidx.compose.foundation.shape.CircleShape).background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(step, style = MaterialTheme.typography.labelLarge, color = Palette.Noite)
+            }
+            Text(title, style = MaterialTheme.typography.titleMedium)
+        }
         content()
     }
 }

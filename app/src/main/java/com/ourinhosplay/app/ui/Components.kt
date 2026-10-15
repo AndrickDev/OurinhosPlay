@@ -51,6 +51,7 @@ import java.util.Locale
 val Sport.color: Color
     get() = when (this) {
         Sport.Futebol -> Palette.Grama
+        Sport.Futevolei -> Palette.Limao
         Sport.Volei -> Palette.Sol
         Sport.Basquete -> Palette.Madeira
         Sport.BeachTennis -> Palette.Mar
@@ -67,6 +68,7 @@ val Sport.color: Color
 val Sport.icon: ImageVector
     get() = when (this) {
         Sport.Futebol -> Icons.Rounded.SportsSoccer
+        Sport.Futevolei -> Icons.Rounded.SportsVolleyball
         Sport.Volei -> Icons.Rounded.SportsVolleyball
         Sport.Basquete -> Icons.Rounded.SportsBasketball
         Sport.BeachTennis -> Icons.Rounded.SportsTennis

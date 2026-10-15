@@ -33,6 +33,7 @@ object Palette {
 
     val Grama = Color(0xFF2BD965)        // futebol
     val Sol = Color(0xFFFFC928)          // vôlei
+    val Limao = Color(0xFFFFE45C)        // futevôlei
     val Madeira = Color(0xFFFF9A3D)      // basquete
     val Mar = Color(0xFF22D3EE)          // beach tennis
     val Teal = Color(0xFF34D1BF)         // futsal
