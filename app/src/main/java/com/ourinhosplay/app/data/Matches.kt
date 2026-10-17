@@ -69,6 +69,8 @@ data class MatchCard(
     val level: String = "todos",
     @SerialName("looking_for") val lookingFor: String? = null,
     @SerialName("short_code") val shortCode: String? = null,
+    /** Funções com vaga sobrando (ex.: goleiro). Vazio se o jogo não usa funções. */
+    @SerialName("roles_open") val rolesOpen: List<String> = emptyList(),
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -184,6 +186,7 @@ data class NewMatch(
     val isPrivate: Boolean = false,
     val level: String = "todos",
     val lookingFor: String = "",
+    val roles: List<RoleSpec> = emptyList(),
 )
 
 /** Erro de negócio vindo do banco (mensagem já em português, segura para exibir). */
@@ -223,6 +226,8 @@ object CreateMatchRepository {
                     if (m.isPrivate) put("p_is_private", true)
                     if (m.level != "todos") put("p_level", m.level)
                     if (m.lookingFor.isNotBlank()) put("p_looking_for", m.lookingFor)
+                    // Migration 0015: só vai se o jogo usa funções.
+                    if (m.roles.isNotEmpty()) put("p_roles", m.roles.toJsonArray())
                 },
             )
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
@@ -247,6 +252,7 @@ data class Participant(
     @SerialName("user_id") val userId: String,
     @SerialName("joined_at") val joinedAt: String,
     @SerialName("arrived_at") val arrivedAt: String? = null,
+    val role: String? = null,
     val profiles: ParticipantProfile? = null,
 )
 
@@ -264,9 +270,13 @@ object MatchDetailRepository {
                 order("joined_at", Order.ASCENDING)
             }.decodeList<Participant>()
         return try {
-            query("user_id, joined_at, arrived_at, profiles(display_name, tag)")
+            query("user_id, joined_at, arrived_at, role, profiles(display_name, tag)")
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
-            query("user_id, joined_at, profiles(display_name, tag)")
+            try {
+                query("user_id, joined_at, arrived_at, profiles(display_name, tag)")
+            } catch (e2: io.github.jan.supabase.exceptions.RestException) {
+                query("user_id, joined_at, profiles(display_name, tag)")
+            }
         }
     }
 
@@ -296,12 +306,17 @@ object MatchDetailRepository {
         }
     }
 
-    suspend fun join(id: String) = call("join_match", id)
+    /** `role` só vai quando a pessoa escolheu uma função (migration 0015). */
+    suspend fun join(id: String, role: String? = null) = call("join_match", id) { role?.let { put("p_role", it) } }
     suspend fun leave(id: String) = call("leave_match", id)
 
-    private suspend fun call(fn: String, id: String) {
+    private suspend fun call(
+        fn: String,
+        id: String,
+        extra: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit = {},
+    ) {
         try {
-            db.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject { put("p_match_id", id) })
+            db.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject { put("p_match_id", id); extra() })
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
             throw BusinessException(
                 e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Não foi possível concluir",

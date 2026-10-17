@@ -3,6 +3,7 @@ package com.ourinhosplay.app.auth
 import android.content.Context
 import android.util.Log
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +17,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 sealed interface AuthState {
     data object Loading : AuthState
@@ -95,7 +98,7 @@ class AuthViewModel : ViewModel() {
     private fun run(what: String, block: suspend () -> Unit) {
         _ui.update { it.copy(busy = true, error = null, info = null) }
         viewModelScope.launch {
-            runCatching { block() }
+            runCatching { withTimeout(AUTH_TIMEOUT_MS) { block() } }
                 .onFailure { e ->
                     Log.e(TAG, what, e)
                     _ui.update { it.copy(error = friendly(e)) }
@@ -107,10 +110,13 @@ class AuthViewModel : ViewModel() {
     private fun friendly(e: Throwable): String = when (e) {
         is GetCredentialCancellationException -> "Login cancelado."
         is NoCredentialException -> "Nenhuma conta Google no aparelho. Adicione uma conta em Configurações."
+        is TimeoutCancellationException -> "Demorou demais. Confira a internet e tente de novo."
+        is GetCredentialException -> "Google: ${e.type} - ${e.message ?: "sem detalhe"}"
         else -> e.message ?: e::class.java.simpleName
     }
 
     private companion object {
         const val TAG = "OurinhosPlay"
+        const val AUTH_TIMEOUT_MS = 60_000L
     }
 }

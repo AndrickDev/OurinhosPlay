@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.ktor.client.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.haze)
 
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play)

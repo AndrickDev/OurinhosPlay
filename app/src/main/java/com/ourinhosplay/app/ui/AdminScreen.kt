@@ -1,6 +1,16 @@
 package com.ourinhosplay.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.rounded.Group
+import androidx.compose.material.icons.rounded.EventBusy
+import androidx.compose.material.icons.rounded.Stadium
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.SportsScore
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -24,8 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -197,15 +205,7 @@ fun AdminScreen(
                 TextButton(onClick = vm::clearMessage) { Text("OK") }
             }
         }
-        TabRow(
-            selectedTabIndex = tab,
-            containerColor = MaterialTheme.colorScheme.background,
-            contentColor = MaterialTheme.colorScheme.primary,
-        ) {
-            listOf("Jogos", "Eventos", "Quadras", "Bloqueios", "Pessoas").forEachIndexed { i, label ->
-                Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label) })
-            }
-        }
+        AdminTabs(selected = tab, onSelect = { tab = it })
 
         when (tab) {
             0 -> when {
@@ -700,6 +700,53 @@ private fun EventDialog(
                 dismissButton = { TextButton(onClick = { pick = null }) { Text("Voltar") } },
                 text = { TimePicker(state) },
             )
+        }
+    }
+}
+
+private data class AdminTabItem(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+
+private val ADMIN_TABS = listOf(
+    AdminTabItem("Jogos", androidx.compose.material.icons.Icons.Rounded.SportsScore),
+    AdminTabItem("Eventos", androidx.compose.material.icons.Icons.Rounded.EmojiEvents),
+    AdminTabItem("Quadras", androidx.compose.material.icons.Icons.Rounded.Stadium),
+    AdminTabItem("Bloqueios", androidx.compose.material.icons.Icons.Rounded.EventBusy),
+    AdminTabItem("Pessoas", androidx.compose.material.icons.Icons.Rounded.Group),
+)
+
+/** Cinco áreas do painel: ícone em cima e rótulo curto embaixo, cabem em qualquer largura. */
+@Composable
+private fun AdminTabs(selected: Int, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        ADMIN_TABS.forEachIndexed { i, t ->
+            val on = selected == i
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .background(if (on) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 8.dp)
+                    .semantics { contentDescription = t.label + if (on) ", selecionado" else "" },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                androidx.compose.material3.Icon(
+                    t.icon,
+                    contentDescription = null,
+                    tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+                Text(
+                    t.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

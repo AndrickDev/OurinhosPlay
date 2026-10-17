@@ -326,7 +326,7 @@ fun SportArt(
     }
 }
 
-private enum class BallKind { Soccer, Volley, Basket, Tennis, PingPong }
+internal enum class BallKind { Soccer, Volley, Basket, Tennis, PingPong }
 
 private fun DrawScope.post(x: Float, top: Float, bottom: Float, w: Float, color: Color) =
     drawLine(color, Offset(x, top), Offset(x, bottom), w, cap = StrokeCap.Round)
@@ -349,7 +349,7 @@ private fun DrawScope.circle(center: Offset, r: Float, color: Color, width: Floa
  * Bola com volume: cor e costuras próprias de cada modalidade, luz vinda do alto à esquerda,
  * borda escurecida e sombra no chão.
  */
-private fun DrawScope.ball(c: Offset, r: Float, kind: BallKind) {
+internal fun DrawScope.ball(c: Offset, r: Float, kind: BallKind) {
     // sombra no chão
     val sc = Offset(c.x + r * 0.18f, c.y + r * 1.08f)
     scale(1f, 0.22f, pivot = sc) {

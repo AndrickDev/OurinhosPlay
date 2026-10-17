@@ -5,6 +5,10 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,13 +81,20 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     // Cada abertura usa um ViewModel novo (chave diferente), para não herdar "criado" da anterior.
     var createKey by rememberSaveable { mutableIntStateOf(0) }
     var creating by rememberSaveable { mutableStateOf(false) }
+    // null = escolhendo; "quick" = só reservar; "social" = jogo com a galera.
+    var createMode by rememberSaveable { mutableStateOf<String?>(null) }
     var openMatch by rememberSaveable { mutableStateOf<String?>(null) }
     var template by remember { mutableStateOf<MatchCard?>(null) }
     var adminOpen by rememberSaveable { mutableStateOf(false) }
 
     // Voltar do sistema fecha detalhe/criação em vez de sair do app.
     androidx.activity.compose.BackHandler(enabled = creating || openMatch != null || adminOpen) {
-        if (adminOpen) adminOpen = false else if (creating) creating = false else openMatch = null
+        when {
+            adminOpen -> adminOpen = false
+            creating && createMode != null && template == null -> createMode = null
+            creating -> creating = false
+            else -> openMatch = null
+        }
     }
 
     openMatch?.let { id ->
@@ -107,68 +118,105 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
     if (creating) {
         val createVm: CreateMatchViewModel = viewModel(key = "create-$createKey")
         LaunchedEffect(createKey) { template?.let { createVm.prefill(it) } }
-        CreateMatchScreen(
-            venues = venues.data,
-            courts = courts.data,
-            onClose = { creating = false; template = null },
-            onCreated = {
-                creating = false
-                template = null
-                vm.refreshFeed()
-                vm.refreshMine()
-            },
-            vm = createVm,
-        )
+        val finish = {
+            creating = false
+            createMode = null
+            template = null
+            vm.refreshFeed()
+            vm.refreshMine()
+        }
+        val close = { creating = false; createMode = null; template = null }
+        when (createMode) {
+            "quick" -> QuickReserveScreen(venues.data, courts.data, onClose = { createMode = null }, onCreated = finish, vm = createVm)
+            "social" -> CreateMatchScreen(venues.data, courts.data, onClose = close, onCreated = finish, vm = createVm)
+            else -> CreateEntryScreen(
+                onQuick = { createMode = "quick" },
+                onSocial = { createMode = "social" },
+                onClose = close,
+            )
+        }
         return
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
+    GlassBackdrop(
+
+        // fora da fonte do blur: a barra borra o conteúdo que rola por trás
+        overlay = {
             if (tab == Tab.Feed.ordinal) {
                 ExtendedFloatingActionButton(
                     onClick = {
                         template = null
+                        createMode = null
                         createKey++
                         creating = true
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
                     icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                    text = { Text("Criar jogo", style = MaterialTheme.typography.labelLarge) },
+                    text = { Text("Criar", style = MaterialTheme.typography.labelLarge) },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 92.dp),
                 )
             }
+            GlassNav(
+                selected = tab,
+                onSelect = { tab = it },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 14.dp),
+            )
         },
-        bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceVariant) {
-                Tab.entries.forEach { t ->
-                    NavigationBarItem(
-                        selected = tab == t.ordinal,
-                        onClick = { tab = t.ordinal },
-                        icon = { Icon(t.icon, contentDescription = null) },
-                        label = { Text(t.label, maxLines = 1) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Palette.Noite,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            indicatorColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    )
-                }
-            }
-        },
-    ) { inner ->
-        Column(Modifier.fillMaxSize().padding(inner)) {
+    ) {
+        Column(Modifier.fillMaxSize()) {
             when (Tab.entries[tab]) {
                 Tab.Feed -> FeedScreen(vm) { openMatch = it }
                 Tab.Mine -> MineScreen(vm, onOpen = { openMatch = it }, onAgain = {
                     template = it
+                    createMode = "social"
                     createKey++
                     creating = true
                 })
                 Tab.Venues -> VenuesScreen(vm)
                 Tab.Profile -> ProfileScreen(displayName, onSignOut, isAdmin) { adminOpen = true }
+            }
+        }
+    }
+}
+
+/** Barra de navegação flutuante: vidro com blur do conteúdo que rola por trás. */
+@Composable
+private fun GlassNav(selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .glassBar()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Tab.entries.forEach { t ->
+            val on = selected == t.ordinal
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                    .background(if (on) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelect(t.ordinal) }
+                    .padding(vertical = 8.dp)
+                    .semantics { contentDescription = t.label + if (on) ", selecionado" else "" },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Icon(
+                    t.icon,
+                    contentDescription = null,
+                    tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+                Text(
+                    t.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -182,7 +230,13 @@ private fun Wordmark(subtitle: String) {
                 append("Ourinhos")
                 withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("Play") }
             },
-            style = MaterialTheme.typography.headlineLarge,
+            // a marca mantém o itálico de placar; o resto do app usa títulos sem itálico
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontFamily = ScoreFont,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontSize = 36.sp,
+            ),
         )
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -423,8 +477,7 @@ private fun VenueRow(v: Venue, courts: List<Court>) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .card()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {

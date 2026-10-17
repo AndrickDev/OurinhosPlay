@@ -9,6 +9,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,8 +65,7 @@ fun WeatherCard(startIso: String, ended: Boolean) {
     val f = forecast ?: return
     Row(
         Modifier.fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .card()
             .padding(14.dp)
             .semantics { contentDescription = "Previsão: ${f.label}, ${f.tempC} graus, ${f.rainPercent}% de chance de chuva" },
         verticalAlignment = Alignment.CenterVertically,
@@ -219,7 +219,14 @@ private val LEVEL_LABEL = mapOf(
 
 /** Nível, "procurando", rateio com Pix e código de convite do jogo. */
 @Composable
-fun OrganizationCard(m: com.ourinhosplay.app.data.MatchCard, isMember: Boolean, color: Color, onToast: (String) -> Unit) {
+fun OrganizationCard(
+    m: com.ourinhosplay.app.data.MatchCard,
+    isMember: Boolean,
+    color: Color,
+    onToast: (String) -> Unit,
+    roles: List<com.ourinhosplay.app.data.RoleStatus> = emptyList(),
+    participants: List<com.ourinhosplay.app.data.Participant> = emptyList(),
+) {
     val context = LocalContext.current
     val hasCost = (m.costCents ?: 0) > 0
     val hasLevel = m.level != "todos"
@@ -235,8 +242,7 @@ fun OrganizationCard(m: com.ourinhosplay.app.data.MatchCard, isMember: Boolean, 
 
     Column(
         Modifier.fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .card()
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -250,25 +256,52 @@ fun OrganizationCard(m: com.ourinhosplay.app.data.MatchCard, isMember: Boolean, 
         if (hasCost) {
             val total = m.costCents!!
             val people = maxOf(m.taken, 1)
-            val each = (total + people - 1) / people
+            // Quem tem benefício (ex.: goleiro isento) paga menos; o resto divide o que sobra.
+            val weight = if (participants.isEmpty()) people.toDouble()
+            else participants.sumOf { com.ourinhosplay.app.data.payWeight(it.role, roles) }
+            val each = Math.ceil(total / weight.coerceAtLeast(1.0)).toInt()
+            val perks = roles.filter { it.perkPct > 0 }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Rateio da quadra: ${reais(total)}", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "${reais(each)} por pessoa com $people no jogo" +
-                        if (m.capacity > m.taken) " (cai para ${reais((total + m.capacity - 1) / m.capacity)} se lotar)" else "",
+                        if (m.capacity > m.taken && perks.isEmpty()) " (cai para ${reais((total + m.capacity - 1) / m.capacity)} se lotar)" else "",
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                perks.forEach { r ->
+                    Text(
+                        com.ourinhosplay.app.data.RoleCatalog.label(r.role) + ": " +
+                            if (r.perkPct == 100) "não paga" else "paga ${reais(each / 2)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = color,
+                    )
+                }
             }
             if (isMember && !m.pixKey.isNullOrBlank()) {
-                OutlinedButton(onClick = { copy("Chave Pix", m.pixKey!!) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Copiar Pix: ${m.pixKey}", maxLines = 1)
-                }
+                CopyRow("Chave Pix", m.pixKey!!) { copy("Chave Pix", m.pixKey!!) }
             }
         }
         if (hasCode) {
-            OutlinedButton(onClick = { copy("Código do jogo", m.shortCode!!) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Código do jogo: ${m.shortCode}  ·  copiar")
-            }
+            CopyRow("Código do jogo", m.shortCode!!) { copy("Código do jogo", m.shortCode!!) }
         }
+    }
+}
+
+/** Linha "rótulo, valor, Copiar" dentro de um cartão: um toque copia. Sem botão com contorno. */
+@Composable
+private fun CopyRow(label: String, value: String, onCopy: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+            .clickable(onClick = onCopy)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
+        Text("Copiar", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }
 }

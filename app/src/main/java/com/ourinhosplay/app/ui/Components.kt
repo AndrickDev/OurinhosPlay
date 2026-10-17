@@ -1,6 +1,12 @@
 package com.ourinhosplay.app.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.ourinhosplay.app.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -124,7 +130,7 @@ fun SlotBar(taken: Int, capacity: Int, color: Color, modifier: Modifier = Modifi
             Box(
                 Modifier
                     .weight(1f)
-                    .height(7.dp)
+                    .height(5.dp)
                     .clip(RoundedCornerShape(50))
                     .background(if (i < lit) color else Palette.Tribuna),
             )
@@ -132,7 +138,59 @@ fun SlotBar(taken: Int, capacity: Int, color: Color, modifier: Modifier = Modifi
     }
 }
 
-/** O card-ingresso: horário gigante na cor do esporte, título e vagas. */
+/** Foto da modalidade (uso livre, ver docs/CREDITOS-FOTOS.md). */
+val Sport.photo: Int
+    get() = when (this) {
+        Sport.Futebol -> R.drawable.sport_futebol
+        Sport.Futevolei -> R.drawable.sport_futevolei
+        Sport.Volei -> R.drawable.sport_volei
+        Sport.Basquete -> R.drawable.sport_basquete
+        Sport.BeachTennis -> R.drawable.sport_beach_tennis
+        Sport.Futsal -> R.drawable.sport_futsal
+        Sport.Tenis -> R.drawable.sport_tenis
+        Sport.Padel -> R.drawable.sport_padel
+        Sport.Natacao -> R.drawable.sport_natacao
+        Sport.Biribol -> R.drawable.sport_biribol
+        Sport.Corrida -> R.drawable.sport_corrida
+        Sport.Ciclismo -> R.drawable.sport_ciclismo
+        Sport.Caminhada -> R.drawable.sport_caminhada
+        Sport.TenisDeMesa -> R.drawable.sport_tenis_de_mesa
+    }
+
+/** Foto da modalidade preenchendo o espaço (recorte central). Decorativa. */
+@Composable
+fun SportPhoto(sport: Sport?, modifier: Modifier = Modifier) {
+    if (sport == null) {
+        Box(modifier.background(Palette.Arquibancada))
+    } else {
+        Image(
+            painter = painterResource(sport.photo),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier,
+        )
+    }
+}
+
+/** Miniatura quadrada com a foto do esporte e o ícone da modalidade num selo de cor. */
+@Composable
+fun SportThumb(sport: Sport?, size: androidx.compose.ui.unit.Dp = 64.dp) {
+    val color = sport?.color ?: Palette.Pista
+    Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.28f))) {
+        SportPhoto(sport, Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Palette.Noite.copy(alpha = 0.45f)))))
+        if (sport != null) {
+            Box(
+                Modifier.align(Alignment.BottomEnd).padding(5.dp).size(size * 0.34f).clip(CircleShape).background(color),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(sport.icon, contentDescription = null, tint = Palette.Noite, modifier = Modifier.size(size * 0.2f))
+            }
+        }
+    }
+}
+
+/** Cartão do jogo: ícone da modalidade, título e local, horário em numerais de placar e as vagas. */
 @Composable
 fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val sport = Sport.from(m.sport)
@@ -140,56 +198,65 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
     val cancelled = m.status == "cancelled"
     val full = m.status == "full" || m.spotsLeft == 0
 
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
             .alpha(if (cancelled) 0.55f else 1f)
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick),
+            .card()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(
-            Modifier.widthIn(min = 96.dp).fillMaxHeight().background(color).padding(horizontal = 8.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(hourText(m.startsAt), fontFamily = ScoreFont, fontWeight = FontWeight.ExtraBold,
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontSize = 32.sp, color = Palette.Noite)
-            Text(shortDay(m.startsAt), style = MaterialTheme.typography.labelMedium, color = Palette.Noite)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            SportThumb(sport)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    m.venueName + " · " + shortDay(m.startsAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                hourText(m.startsAt),
+                fontFamily = ScoreFont, fontWeight = FontWeight.ExtraBold,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontSize = 30.sp, color = Palette.Giz,
+            )
         }
-        Column(Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (sport != null) Icon(sport.icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
-                Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelMedium, color = color)
-                if (m.isEvent) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
+            Text(
+                when {
+                    cancelled -> "Cancelado"
+                    full -> "Lotado"
+                    else -> "${m.taken}/${m.capacity}"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = if (full && !cancelled) Palette.Bola else MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        val tags = buildList {
+            if (m.isEvent) add("Evento" to Palette.Bola)
+            if (!full && !cancelled && m.rolesOpen.isNotEmpty()) {
+                add("Falta " + m.rolesOpen.joinToString(", ") { com.ourinhosplay.app.data.RoleCatalog.label(it).lowercase() } to Palette.Bola)
+            }
+        }
+        if (tags.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tags.forEach { (label, tone) ->
                     Text(
-                        "EVENTO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Palette.Noite,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.Bola).padding(horizontal = 8.dp, vertical = 2.dp),
+                        label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = tone,
+                        modifier = Modifier.clip(RoundedCornerShape(50)).background(tone.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
-            }
-            Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(m.venueName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
-                Text(
-                    when {
-                        cancelled -> "Cancelado"
-                        full -> "Lotado"
-                        else -> "${m.taken}/${m.capacity}"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (full && !cancelled) Palette.Bola else MaterialTheme.colorScheme.onSurface,
-                )
             }
         }
     }
 }
+
 
 /** Chips selecionados em laranja-pista, em vez do cinza padrão do Material. */
 @Composable
@@ -197,3 +264,17 @@ fun appChipColors() = androidx.compose.material3.FilterChipDefaults.filterChipCo
     selectedContainerColor = MaterialTheme.colorScheme.primary,
     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
 )
+
+/** " · 1h30" a partir de início e fim (ISO); vazio se não der para calcular. */
+fun durationLabel(startIso: String, endIso: String): String {
+    val s = runCatching { OffsetDateTime.parse(startIso).toInstant() }.getOrNull() ?: return ""
+    val e = runCatching { OffsetDateTime.parse(endIso).toInstant() }.getOrNull() ?: return ""
+    return " · " + formatDuration(java.time.Duration.between(s, e).toMinutes().toInt())
+}
+
+/** 45 -> "45 min", 60 -> "1h", 90 -> "1h30". */
+fun formatDuration(min: Int): String = when {
+    min < 60 -> "$min min"
+    min % 60 == 0 -> "${min / 60}h"
+    else -> "${min / 60}h%02d".format(min % 60)
+}

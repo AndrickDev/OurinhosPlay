@@ -6,10 +6,12 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
@@ -21,6 +23,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -58,6 +64,9 @@ import com.ourinhosplay.app.data.BusinessException
 import com.ourinhosplay.app.data.MatchCard
 import com.ourinhosplay.app.data.MatchDetailRepository
 import com.ourinhosplay.app.data.Participant
+import com.ourinhosplay.app.data.RoleCatalog
+import com.ourinhosplay.app.data.RoleStatus
+import com.ourinhosplay.app.data.RolesRepository
 import com.ourinhosplay.app.data.Sport
 import java.time.Instant
 import java.time.OffsetDateTime
@@ -80,6 +89,7 @@ data class DetailUi(
     val error: String? = null,
     val match: MatchCard? = null,
     val participants: List<Participant> = emptyList(),
+    val roles: List<RoleStatus> = emptyList(),
     val me: String? = null,
     val busy: Boolean = false,
     val toast: String? = null,
@@ -125,14 +135,15 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
                 coroutineScope {
                     val d = async { MatchDetailRepository.detail(matchId) }
                     val p = async { MatchDetailRepository.participants(matchId) }
-                    d.await() to p.await()
+                    val ro = async { runCatching { RolesRepository.status(matchId) }.getOrDefault(emptyList()) }
+                    Triple(d.await(), p.await(), ro.await())
                 }
             }
             _ui.update {
                 r.fold(
-                    onSuccess = { (m, p) ->
+                    onSuccess = { (m, p, ro) ->
                         if (m == null) it.copy(loading = false, error = "Esse jogo não existe mais.")
-                        else it.copy(loading = false, match = m, participants = p)
+                        else it.copy(loading = false, match = m, participants = p, roles = ro)
                     },
                     onFailure = { _ -> it.copy(loading = false, error = "Sem conexão. Tente de novo.") },
                 )
@@ -140,7 +151,10 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
         }
     }
 
-    fun join() = act { MatchDetailRepository.join(matchId) }
+    fun join(role: String? = null) = act { MatchDetailRepository.join(matchId, role) }
+
+    /** Reserva rápida vira jogo aberto na lista. */
+    fun openReservation(capacity: Int) = manage("Vagas abertas. O jogo já aparece na lista.") { RolesRepository.openReservation(matchId, capacity) }
 
     fun leave() = act { MatchDetailRepository.leave(matchId) }
 
@@ -274,12 +288,24 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
         }
     }
 
+    GlassBackdrop(
+
+        // a barra de ação fica fora da fonte do blur: borra o conteúdo que rola por trás
+        overlay = {
+            Column(Modifier.align(Alignment.BottomCenter)) {
+                SnackbarHost(snackbar)
+                if (ui.match != null) ActionBar(ui, vm::join, vm::leave)
+            }
+        },
+    ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = { if (ui.match != null) ActionBar(ui, vm::join, vm::leave) },
+        containerColor = Color.Transparent,
+        // as margens do sistema já vêm do Scaffold de fora; sem isso o topo ganha um vão duplo
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
     ) { inner ->
         Box(Modifier.fillMaxSize().padding(inner)) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            // fundo da coluna: espaço para a barra de ação flutuante não cobrir o fim da tela
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 168.dp)) {
                 TextButton(onClick = onBack) { Text("← Voltar") }
                 when {
                     ui.loading -> Box(Modifier.fillMaxWidth().padding(48.dp), Alignment.Center) { CircularProgressIndicator() }
@@ -288,7 +314,7 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
                         OutlinedButton(onClick = vm::load, modifier = Modifier.padding(top = 12.dp)) { Text("Tentar de novo") }
                     }
                     else -> {
-                        Details(ui, match, onArrive = vm::arrive, onToast = vm::toast)
+                        Details(ui, match, onArrive = vm::arrive, onToast = vm::toast, onOpenReservation = vm::openReservation)
                         if (ui.canManage) ManageCard(ui, match, vm)
                     }
                 }
@@ -297,38 +323,85 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
             GoalBanner(trigger = celebrate)
         }
     }
+    }
 }
 
 @Composable
-private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (String) -> Unit) {
+private fun Details(
+    ui: DetailUi,
+    m: MatchCard,
+    onArrive: () -> Unit,
+    onToast: (String) -> Unit,
+    onOpenReservation: (Int) -> Unit,
+) {
     val sport = Sport.from(m.sport)
     val color = sport?.color ?: Palette.Pista
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // Capa do jogo: o esporte tinge a tela inteira da partida.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.large)
-                .background(color),
-        ) {
-            SportArt(sport, Modifier.matchParentSize())
-            Column(
-                Modifier.fillMaxWidth(0.64f).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (sport != null) Icon(sport.icon, contentDescription = null, tint = Palette.Noite, modifier = Modifier.size(20.dp))
-                Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelLarge, color = Palette.Noite)
+        // Capa: foto da modalidade com degradê escuro e o título por cima; abaixo, o horário como
+        // placar e o local. A cor do esporte aparece só nos numerais.
+        Column(Modifier.fillMaxWidth().card(androidx.compose.foundation.shape.RoundedCornerShape(24.dp))) {
+            Box(Modifier.fillMaxWidth().height(220.dp)) {
+                SportPhoto(sport, Modifier.matchParentSize())
+                Box(
+                    Modifier.matchParentSize().background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            0.0f to Color.Black.copy(alpha = 0.25f),
+                            0.45f to Color.Transparent,
+                            1.0f to Palette.Arquibancada,
+                        ),
+                    ),
+                )
+                Row(
+                    Modifier.align(Alignment.TopStart).padding(14.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                        .background(Palette.Noite.copy(alpha = 0.55f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (sport != null) Icon(sport.icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+                    Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelLarge, color = Palette.Giz)
+                }
+                Text(
+                    m.title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Palette.Giz,
+                    maxLines = 3,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 20.dp, end = 20.dp, bottom = 10.dp),
+                )
             }
-            Text(m.title, style = MaterialTheme.typography.headlineLarge, color = Palette.Noite)
-            Text(m.venueName, style = MaterialTheme.typography.titleMedium, color = Palette.Noite)
-            Text(whenFull(m.startsAt, m.endsAt), style = MaterialTheme.typography.bodyLarge, color = Palette.Noite)
+            Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        hourText(m.startsAt),
+                        fontFamily = ScoreFont, fontWeight = FontWeight.ExtraBold,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontSize = 54.sp, lineHeight = 54.sp,
+                        color = Palette.Giz,
+                    )
+                    Column(Modifier.padding(bottom = 6.dp)) {
+                        Text(dayGroupLabel(m.startsAt), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "até " + hourText(m.endsAt) + durationLabel(m.startsAt, m.endsAt),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Glass.Hairline))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Icon(Icons.Rounded.Place, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                    Text(
+                        m.venueName + (m.courtName?.let { " · $it" } ?: ""),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
             }
         }
 
         Countdown(m.startsAt, m.endsAt, ui.ended)
         WeatherCard(m.startsAt, ui.ended)
-        OrganizationCard(m, ui.isMember, color, onToast)
+        if (ui.isCreator && m.isPrivate && m.capacity == 1 && !ui.ended) OpenReservationCard(color, ui.busy, onOpenReservation)
+        OrganizationCard(m, ui.isMember, color, onToast, ui.roles, ui.participants)
 
         val me = ui.participants.firstOrNull { it.userId == ui.me }
         val startMs = parseMillis(m.startsAt)
@@ -347,13 +420,14 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
         if (!m.routeStart.isNullOrBlank() && !m.routeEnd.isNullOrBlank()) {
             val ctx = androidx.compose.ui.platform.LocalContext.current
             Column(
-                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant).padding(14.dp),
+                Modifier.fillMaxWidth().card().padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("Largada: ${m.routeStart}", style = MaterialTheme.typography.bodyLarge)
                 Text("Chegada: ${m.routeEnd}", style = MaterialTheme.typography.bodyLarge)
-                OutlinedButton(onClick = { openRoute(ctx, m.routeStart!!, m.routeEnd!!) }) { Text("Ver trajeto no Maps") }
+                TextButton(onClick = { openRoute(ctx, m.routeStart!!, m.routeEnd!!) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Text("Ver trajeto no Maps")
+                }
             }
         }
 
@@ -368,6 +442,8 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
                 style = MaterialTheme.typography.titleMedium,
             )
         }
+
+        if (ui.roles.isNotEmpty()) RolesPanel(ui.roles, color)
 
         if (!ui.ended) {
             val context = LocalContext.current
@@ -401,6 +477,7 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
                 Column {
                     Text(name, style = MaterialTheme.typography.bodyLarge)
                     val tag = buildList {
+                        p.role?.let { add(RoleCatalog.label(it)) }
                         if (p.userId == m.creatorId) add("organizador")
                         if (p.userId == ui.me) add("você")
                         if (p.userId != ui.me && p.userId in ui.friendIds) add("★ amigo")
@@ -419,34 +496,158 @@ private fun Details(ui: DetailUi, m: MatchCard, onArrive: () -> Unit, onToast: (
     }
 }
 
+/** Texto curto do benefício de uma função no rateio. */
+private fun perkLabel(pct: Int): String? = when (pct) {
+    100 -> "isento"
+    50 -> "paga metade"
+    else -> null
+}
+
+/** Vagas por função: quanto já foi preenchido e até quando a vaga está reservada. */
 @Composable
-private fun ActionBar(ui: DetailUi, onJoin: () -> Unit, onLeave: () -> Unit) {
+private fun RolesPanel(roles: List<RoleStatus>, color: Color) {
+    Column(
+        Modifier.fillMaxWidth().card().padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Vagas por função", style = MaterialTheme.typography.titleSmall)
+        roles.forEach { r ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(RoleCatalog.label(r.role), style = MaterialTheme.typography.bodyLarge)
+                    val note = buildList {
+                        if (r.locked) hourText(r.releaseAt ?: "").let { add("reservada até $it") }
+                        perkLabel(r.perkPct)?.let { add(it) }
+                    }.joinToString(" · ")
+                    if (note.isNotEmpty()) {
+                        Text(note, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                SlotBar(r.taken, r.slots, color, Modifier.width(72.dp))
+                Text("${r.taken}/${r.slots}", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+/** Reserva rápida do próprio usuário: um toque para virar jogo aberto. */
+@Composable
+private fun OpenReservationCard(color: Color, busy: Boolean, onOpen: (Int) -> Unit) {
+    var cap by remember { mutableIntStateOf(10) }
+    Column(
+        Modifier.fillMaxWidth().card().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Reserva só sua", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "A quadra está bloqueada para você. Quer chamar a galera?",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Vagas", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            OutlinedButton(
+                onClick = { cap = (cap - 1).coerceAtLeast(2) },
+                modifier = Modifier.size(44.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) { Text("−") }
+            Text("$cap", style = MaterialTheme.typography.titleLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.width(48.dp))
+            OutlinedButton(
+                onClick = { cap = (cap + 1).coerceAtMost(40) },
+                modifier = Modifier.size(44.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) { Text("+") }
+        }
+        Button(
+            onClick = { onOpen(cap) },
+            enabled = !busy,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+        ) { Text("Abrir vagas") }
+    }
+}
+
+@Composable
+private fun ActionBar(ui: DetailUi, onJoin: (String?) -> Unit, onLeave: () -> Unit) {
     val m = ui.match ?: return
     val color = Sport.from(m.sport)?.color ?: Palette.Pista
     val full = m.status == "full" || m.spotsLeft == 0
-    val big = Modifier.fillMaxWidth().height(60.dp)
-    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(16.dp)) {
-        when {
-            ui.ended -> Button(onClick = {}, enabled = false, modifier = big) {
-                Text(if (ui.cancelled) "Cancelado" else "Encerrado")
-            }
-            ui.isMember -> OutlinedButton(onClick = onLeave, enabled = !ui.busy, modifier = big) {
-                Text("Sair do jogo")
-            }
-            full -> Button(onClick = {}, enabled = false, modifier = big) { Text("Lotado") }
-            else -> Button(
-                onClick = onJoin,
-                enabled = !ui.busy,
-                modifier = big,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
-            ) {
-                Text(
-                    if (ui.busy) "Entrando…" else "Bora lá!",
-                    fontFamily = ScoreFont,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    fontSize = 28.sp,
-                )
+    val big = Modifier.fillMaxWidth().height(58.dp)
+    val pill = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+    // Vagas reservadas (e ainda não liberadas) não contam para quem entra sem função.
+    val lockedOpen = ui.roles.filter { it.locked }.sumOf { it.open }
+    val generalOpen = !full && m.spotsLeft - lockedOpen > 0
+    val roleOpen = ui.roles.filter { it.open > 0 }
+    // Um botão só por ação (sem moldura em volta). O fundo some em degradê para o conteúdo não
+    // aparecer atrás do texto dos botões.
+    val outlined = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = Palette.Arquibancada)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0.0f to Color.Transparent,
+                    0.35f to Palette.Noite.copy(alpha = 0.94f),
+                    1.0f to Palette.Noite,
+                ),
+            )
+            .padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        run {
+            when {
+                ui.ended -> Button(onClick = {}, enabled = false, shape = pill, modifier = big) {
+                    Text(if (ui.cancelled) "Cancelado" else "Encerrado")
+                }
+                ui.isMember -> OutlinedButton(onClick = onLeave, enabled = !ui.busy, shape = pill, modifier = big, colors = outlined) {
+                    Text("Sair do jogo")
+                }
+                full -> Button(onClick = {}, enabled = false, shape = pill, modifier = big) { Text("Lotado") }
+                else -> {
+                    if (generalOpen) {
+                        Button(
+                            onClick = { onJoin(null) },
+                            enabled = !ui.busy,
+                            shape = pill,
+                            modifier = big,
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
+                        ) {
+                            Text(
+                                if (ui.busy) "Entrando…" else "Bora lá!",
+                                fontFamily = ScoreFont,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                fontSize = 26.sp,
+                            )
+                        }
+                    } else if (roleOpen.isNotEmpty()) {
+                        Text(
+                            "As vagas que sobraram são de função específica.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp),
+                        )
+                    }
+                    roleOpen.forEach { r ->
+                        val perk = perkLabel(r.perkPct)
+                        if (generalOpen) {
+                            OutlinedButton(onClick = { onJoin(r.role) }, enabled = !ui.busy, shape = pill, modifier = Modifier.fillMaxWidth().height(48.dp), colors = outlined) {
+                                Text("Entrar de ${RoleCatalog.label(r.role).lowercase()}" + (perk?.let { " · $it" } ?: ""))
+                            }
+                        } else {
+                            Button(
+                                onClick = { onJoin(r.role) },
+                                enabled = !ui.busy,
+                                shape = pill,
+                                modifier = big,
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
+                            ) {
+                                Text("Entrar de ${RoleCatalog.label(r.role).lowercase()}" + (perk?.let { " · $it" } ?: ""), style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -638,27 +839,33 @@ private fun ManageCard(ui: DetailUi, m: MatchCard, vm: MatchDetailViewModel) {
     var confirmCancel by remember { androidx.compose.runtime.mutableStateOf(false) }
     var confirmDelete by remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    androidx.compose.material3.Card(
-        Modifier.fillMaxWidth().padding(top = 24.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                if (ui.isCreator) "Você organiza esse jogo" else "Administração",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            if (!ui.cancelled && !ui.ended) {
-                OutlinedButton(onClick = { edit = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
-                    Text("Editar")
+    // Lista agrupada, como nas configurações do iOS: uma linha por ação, separadas por fio.
+    Column(Modifier.fillMaxWidth().padding(top = 24.dp)) {
+        Text(
+            if (ui.isCreator) "Você organiza esse jogo" else "Administração",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        Column(Modifier.fillMaxWidth().card()) {
+            val rows = buildList {
+                if (!ui.cancelled && !ui.ended) {
+                    add(Triple("Editar jogo", Palette.Giz) { edit = true })
+                    add(Triple("Cancelar jogo", Palette.Giz) { confirmCancel = true })
                 }
-                OutlinedButton(onClick = { confirmCancel = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
-                    Text("Cancelar jogo")
-                }
+                if (ui.isAdmin) add(Triple("Excluir de vez", MaterialTheme.colorScheme.error) { confirmDelete = true })
             }
-            if (ui.isAdmin) {
-                TextButton(onClick = { confirmDelete = true }, enabled = !ui.busy, modifier = Modifier.fillMaxWidth()) {
-                    Text("Excluir de vez (admin)", color = MaterialTheme.colorScheme.error)
-                }
+            rows.forEachIndexed { i, (label, tone, action) ->
+                if (i > 0) androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(1.dp).background(Glass.Hairline))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = tone,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !ui.busy, onClick = action)
+                        .padding(horizontal = 16.dp, vertical = 15.dp),
+                )
             }
         }
     }

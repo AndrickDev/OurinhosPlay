@@ -200,8 +200,7 @@ private fun ArtGallery(onClose: () -> Unit) {
 private fun StatTile(value: String, label: String, modifier: Modifier = Modifier) {
     Column(
         modifier
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .card()
             .padding(vertical = 14.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

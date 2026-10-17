@@ -22,11 +22,11 @@ import com.ourinhosplay.app.R
  * sobre um azul-noite de estádio. Cada esporte tinge o próprio card e botão.
  */
 object Palette {
-    val Noite = Color(0xFF0C0F2B)       // fundo
-    val Arquibancada = Color(0xFF151A45) // superfícies
-    val Tribuna = Color(0xFF1F2560)      // superfícies elevadas / bordas
-    val Giz = Color(0xFFF2F4FF)          // texto principal
-    val Neblina = Color(0xFF9AA2D6)      // texto secundário
+    val Noite = Color(0xFF0A0E1F)       // fundo (azul-noite, sólido)
+    val Arquibancada = Color(0xFF121833) // superfícies (cartões)
+    val Tribuna = Color(0xFF1D2548)      // superfícies elevadas / bordas / vagas vazias
+    val Giz = Color(0xFFF4F6FB)          // texto principal
+    val Neblina = Color(0xFF98A1C4)      // texto secundário
     val Pista = Color(0xFFFF5B1F)        // primária (pista de corrida)
     val Bola = Color(0xFFE6FF3D)         // destaque raro: ao vivo, GOOOL
     val Alerta = Color(0xFFFF4D6D)
@@ -64,10 +64,10 @@ val ScoreFont: FontFamily = Display
 private val AppTypography = Typography(
     displayLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic, fontSize = 56.sp, lineHeight = 56.sp),
     displayMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic, fontSize = 44.sp, lineHeight = 44.sp),
-    headlineLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic, fontSize = 36.sp, lineHeight = 38.sp),
-    headlineMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic, fontSize = 30.sp, lineHeight = 32.sp),
-    headlineSmall = TextStyle(fontFamily = Display, fontWeight = FontWeight.ExtraBold, fontStyle = FontStyle.Italic, fontSize = 26.sp, lineHeight = 28.sp),
-    titleLarge = TextStyle(fontFamily = Display, fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic, fontSize = 24.sp),
+    headlineLarge = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 38.sp, letterSpacing = (-0.5).sp),
+    headlineMedium = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 34.sp, letterSpacing = (-0.3).sp),
+    headlineSmall = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = (-0.2).sp),
+    titleLarge = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),
     titleMedium = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
     titleSmall = TextStyle(fontFamily = Body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp),
     bodyLarge = TextStyle(fontFamily = Body, fontWeight = FontWeight.Normal, fontSize = 17.sp, lineHeight = 24.sp),
