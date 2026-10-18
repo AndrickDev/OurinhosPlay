@@ -90,5 +90,7 @@ dependencies {
     implementation(libs.androidx.credentials.play)
     implementation(libs.googleid)
 
+    testImplementation(libs.junit)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

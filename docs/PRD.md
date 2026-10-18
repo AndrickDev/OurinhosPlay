@@ -383,10 +383,10 @@ Cada sprint termina com um **APK instalado e testado no celular**.
 - [ ] Editar/cancelar jogo (criador)
 
 ### Sprint 6 — Admin
-- [ ] Role `admin` + RLS
-- [ ] Agenda por quadra
-- [ ] Bloqueio de horário (`venue_blocks`)
-- [ ] Cancelar jogo com motivo
+- [x] Role `admin` + RLS
+- [x] Agenda por quadra
+- [x] Bloqueio de horário (`venue_blocks`)
+- [x] Cancelar jogo com motivo
 
 ### Sprint 7 — Qualidade
 - [ ] Pass de acessibilidade (TalkBack)
@@ -494,3 +494,10 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Feed**: filtro por dia (qualquer, hoje, amanhã, fim de semana). **Locais**: filtro por modalidade.
 - **Perfil**: jogos feitos, organizados e esporte favorito (sem ranking).
 - **Tênis de mesa** como modalidade. Biribol é jogado na piscina (arte com água).
+
+## 14. Estado em 18/10/2026
+- Sprint 6 (admin) pronta. Migrations 0001-0016 existem no repo; 0014 e 0015 rodadas no banco, **0016 (duração livre) a confirmar**.
+- Etapa 8: reserva rápida, vagas por função (goleiro/levantador), duração livre, visual grafite com fotos por modalidade (ver `FUNCOES-E-PARCEIROS.md`).
+- Testes: JUnit local em `app/src/test` (`./gradlew :app:testDebugUnitTest`). Cobertura mínima (funções/rateio); ampliar com o modo dono.
+- Pendentes de qualidade: Crashlytics (precisa projeto Firebase e `google-services.json`), LGPD, push FCM.
+- Direção de negócio, concorrentes e entrevista com donos: `docs/REVISAO-SENIOR-2026-10.md`. Nada de nível 3 (dono, Pix, destaque) antes da entrevista de 21/10.
