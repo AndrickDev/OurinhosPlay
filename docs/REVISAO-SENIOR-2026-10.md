@@ -88,3 +88,22 @@ Pendente: preços reais (pedir demo/orçamento a 2 concorrentes), avaliações n
 - Ourinhos como laboratório, não como negócio; produto tem de ser replicável por cidade.
 - Entrevista com 3 donos na quarta (21/10); sucesso = 2 aceitam piloto grátis de 30 dias. Até lá, nada de nível 3 (dono, Pix, destaque).
 - Fase 0 aprovada (nível 1). Mockups de cartão e chat aprovados para gerar.
+
+## Auditoria de pendências: o que concorrentes têm e o app não (18/10/2026)
+Fonte: páginas públicas dos concorrentes (marketing). Status = estado do nosso código hoje. Nível segue o fluxo do CLAUDE.md global. Tudo abaixo de "dono" e "Pix" só entra depois da entrevista de 21/10.
+| Recurso | Concorrentes | Nosso app hoje | Nível |
+|---|---|---|---|
+| Conta de dono e multi-quadra por dono | sim (gestor) | não: só `admin` global | 3 |
+| Reserva de quadra com horário e pedido ao dono | sim | parcial: reserva rápida privada sem confirmação do dono | 3 |
+| Pagamento por Pix com confirmação | Arena Score Match, Easyquadra | não (só chave Pix para rateio manual) | 3 |
+| Sinal / garantia de vaga | sim | não | 3 |
+| Check-in por QR Code | Arena Score Match | não ("Cheguei" é futuro) | 2 |
+| Mensalista com cobrança automática | Arena Score Match, Agendei | parcial: jogo recorrente 4/8/12 semanas, sem cobrança | 3 |
+| Rateio automático entre jogadores | sim | parcial: mostra valor por pessoa, sem cobrar | 3 |
+| Vitrine/perfil público da quadra | sim | não | 2 |
+| Push (reserva, cancelamento, vagas) | sim | não (só lembrete local; precisa Firebase) | 2 |
+| Lista de espera | comum | não | 2 |
+| Preço por faixa de horário | comum | parcial: preço/hora fixo por quadra | 2-3 |
+| Relatório de ocupação/receita | sim | não | 2 |
+| Avaliação/reputação do jogador | Chega+ | não (perfil sem ranking, por decisão) | 2 |
+| Métricas de tração (jogadores, jogos) | n/a | `0017_metricas.sql` escrita, não rodada, sem tela | 1 |
