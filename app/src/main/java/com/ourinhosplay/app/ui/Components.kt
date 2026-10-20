@@ -190,7 +190,46 @@ fun SportThumb(sport: Sport?, size: androidx.compose.ui.unit.Dp = 64.dp) {
     }
 }
 
-/** Cartão do jogo: ícone da modalidade, título e local, horário em numerais de placar e as vagas. */
+private val OptionOn = Color(0xFF34C759)
+
+/** Interruptor estilo iPhone: verde = sim, cinza = não. */
+@Composable
+fun OptionSwitch(label: String, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Palette.Tribuna.copy(alpha = 0.5f))
+            .clickable { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onChange(!checked) }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = null,
+            colors = androidx.compose.material3.SwitchDefaults.colors(
+                checkedThumbColor = Color.White, checkedTrackColor = OptionOn, checkedBorderColor = OptionOn,
+                uncheckedThumbColor = Color.White, uncheckedTrackColor = Color(0xFF3A3F55), uncheckedBorderColor = Color(0xFF3A3F55),
+            ),
+        )
+    }
+}
+
+/** Pontinhos de equipamento no cartão: bolinha verde = tem, cinza = não tem. */
+@Composable
+private fun OptionDots(sport: Sport?, options: Map<String, Boolean>) {
+    val items = com.ourinhosplay.app.data.OptionCatalog.resolve(sport, options)
+    if (items.isEmpty()) return
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        items.forEach { (def, on) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).clip(CircleShape).background(if (on) OptionOn else Color(0xFF4A5068)))
+                Text(def.short, style = MaterialTheme.typography.labelSmall, color = if (on) Palette.Giz else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Cartão do jogo: capa com a foto da modalidade e o horário como placar; embaixo local, vagas, preço, equipamento e estado. */
 @Composable
 fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val sport = Sport.from(m.sport)
@@ -203,55 +242,72 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
             .fillMaxWidth()
             .alpha(if (cancelled) 0.55f else 1f)
             .card()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .clickable(onClick = onClick),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SportThumb(sport)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.fillMaxWidth().height(112.dp)) {
+            SportPhoto(sport, Modifier.matchParentSize())
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Palette.Noite.copy(alpha = 0.15f), Palette.Noite.copy(alpha = 0.85f)))))
+            if (sport != null) {
+                Box(
+                    Modifier.align(Alignment.TopStart).padding(12.dp).size(32.dp).clip(CircleShape).background(color),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(sport.icon, contentDescription = sport.label, tint = Palette.Noite, modifier = Modifier.size(18.dp)) }
+            }
+            val tag = when {
+                m.isEvent -> "Evento"
+                !full && !cancelled && m.rolesOpen.isNotEmpty() ->
+                    "Falta " + m.rolesOpen.joinToString(", ") { com.ourinhosplay.app.data.RoleCatalog.label(it).lowercase() }
+                else -> null
+            }
+            if (tag != null) {
                 Text(
-                    m.venueName + " · " + shortDay(m.startsAt),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tag, style = MaterialTheme.typography.labelMedium, color = Palette.Noite,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(50)).background(Palette.Bola).padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
+            Row(
+                Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    hourText(m.startsAt),
+                    fontFamily = ScoreFont, fontWeight = FontWeight.ExtraBold,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontSize = 40.sp, color = Palette.Giz,
+                )
+                Text(shortDay(m.startsAt).uppercase(), style = MaterialTheme.typography.labelLarge, color = Palette.Giz, modifier = Modifier.padding(bottom = 8.dp))
+            }
+        }
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(m.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    m.venueName + (m.courtName?.let { " · $it" } ?: ""),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                hourText(m.startsAt),
-                fontFamily = ScoreFont, fontWeight = FontWeight.ExtraBold,
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontSize = 30.sp, color = Palette.Giz,
-            )
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
-            Text(
-                when {
-                    cancelled -> "Cancelado"
-                    full -> "Lotado"
-                    else -> "${m.taken}/${m.capacity}"
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = if (full && !cancelled) Palette.Bola else MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        val tags = buildList {
-            if (m.isEvent) add("Evento" to Palette.Bola)
-            if (!full && !cancelled && m.rolesOpen.isNotEmpty()) {
-                add("Falta " + m.rolesOpen.joinToString(", ") { com.ourinhosplay.app.data.RoleCatalog.label(it).lowercase() } to Palette.Bola)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
+                Text("${m.taken}/${m.capacity}", style = MaterialTheme.typography.labelLarge)
             }
-        }
-        if (tags.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                tags.forEach { (label, tone) ->
-                    Text(
-                        label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = tone,
-                        modifier = Modifier.clip(RoundedCornerShape(50)).background(tone.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 4.dp),
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val price = when {
+                    m.costCents != null && m.costCents > 0 && m.capacity > 0 -> "R$ " + "%.0f".format(m.costCents / 100.0 / m.capacity) + "/pessoa"
+                    m.courtIsFree == true -> "Grátis"
+                    else -> null
                 }
+                if (price != null) Text(price, style = MaterialTheme.typography.labelLarge, color = Palette.Giz)
+                OptionDots(sport, m.options)
+                Spacer(Modifier.weight(1f))
+                val (label, bg, fg) = when {
+                    cancelled -> Triple("Cancelado", Palette.Tribuna, Palette.Giz)
+                    full -> Triple("Lotado", Palette.Tribuna, Palette.Giz)
+                    else -> Triple("Entrar", Palette.Pista, Palette.Noite)
+                }
+                Text(
+                    label, style = MaterialTheme.typography.labelLarge, color = fg,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 16.dp, vertical = 6.dp),
+                )
             }
         }
     }

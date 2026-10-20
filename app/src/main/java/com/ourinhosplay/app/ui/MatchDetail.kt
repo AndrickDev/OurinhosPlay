@@ -413,6 +413,17 @@ private fun Details(
             }
         }
 
+        val gear = com.ourinhosplay.app.data.OptionCatalog.resolve(Sport.from(m.sport), m.options)
+        if (gear.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                gear.forEach { (d, on) ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(if (on) Color(0xFF34C759) else Color(0xFF4A5068)))
+                        Text(if (on) d.label else "Sem " + d.short.lowercase(), style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+        }
         if (!m.description.isNullOrBlank()) {
             Text(m.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

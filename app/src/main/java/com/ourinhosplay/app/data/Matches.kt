@@ -71,6 +71,8 @@ data class MatchCard(
     @SerialName("short_code") val shortCode: String? = null,
     /** Funções com vaga sobrando (ex.: goleiro). Vazio se o jogo não usa funções. */
     @SerialName("roles_open") val rolesOpen: List<String> = emptyList(),
+    /** Interruptores do criador (bola, rede...); vazio se não personalizou (migration 0018). */
+    val options: Map<String, Boolean> = emptyMap(),
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -187,6 +189,7 @@ data class NewMatch(
     val level: String = "todos",
     val lookingFor: String = "",
     val roles: List<RoleSpec> = emptyList(),
+    val options: Map<String, Boolean> = emptyMap(),
 )
 
 /** Erro de negócio vindo do banco (mensagem já em português, segura para exibir). */
@@ -208,7 +211,7 @@ object CreateMatchRepository {
 
     suspend fun create(m: NewMatch) {
         try {
-            db.postgrest.rpc(
+            val created = db.postgrest.rpc(
                 "create_match",
                 kotlinx.serialization.json.buildJsonObject {
                     put("p_venue_id", m.venueId)
@@ -230,6 +233,18 @@ object CreateMatchRepository {
                     if (m.roles.isNotEmpty()) put("p_roles", m.roles.toJsonArray())
                 },
             )
+            // Migration 0018: falha aqui não derruba a criação (banco sem ela segue normal).
+            if (m.options.isNotEmpty()) runCatching {
+                val id = created.decodeAs<kotlinx.serialization.json.JsonObject>()["id"]
+                    ?.let { (it as kotlinx.serialization.json.JsonPrimitive).content }
+                if (id != null) db.postgrest.rpc(
+                    "set_match_options",
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("p_match_id", id)
+                        put("p_options", kotlinx.serialization.json.JsonObject(m.options.mapValues { kotlinx.serialization.json.JsonPrimitive(it.value) }))
+                    },
+                )
+            }
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
             // A 1ª linha da mensagem é o texto da exceção do Postgres (sem URL nem cabeçalhos).
             throw BusinessException(e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }

@@ -51,6 +51,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ourinhosplay.app.data.Availability
+import com.ourinhosplay.app.data.OptionCatalog
 import com.ourinhosplay.app.data.BusinessException
 import com.ourinhosplay.app.data.Court
 import com.ourinhosplay.app.data.CreateMatchRepository
@@ -113,6 +114,8 @@ data class CreateUi(
     val isPrivate: Boolean = false,
     val level: String = "todos",
     val lookingFor: String = "",
+    /** Interruptores de equipamento mexidos pela pessoa; vazio = não personalizou. */
+    val options: Map<String, Boolean> = emptyMap(),
     /** 0 = jogo único; 4/8/12 = repete toda semana por N semanas. */
     val repeatWeeks: Int = 0,
     /** Vagas da função rara da modalidade (goleiro...); 0 = jogo sem funções. */
@@ -224,6 +227,7 @@ class CreateMatchViewModel : ViewModel() {
     fun setPix(t: String) = _ui.update { it.copy(pixKey = t.take(80)) }
     fun setPrivate(v: Boolean) = _ui.update { it.copy(isPrivate = v) }
     fun setLevel(v: String) = _ui.update { it.copy(level = v) }
+    fun setOption(key: String, v: Boolean) = _ui.update { it.copy(options = it.options + (key to v)) }
     fun setLookingFor(t: String) = _ui.update { it.copy(lookingFor = t.take(60)) }
     fun setRepeat(weeks: Int) = _ui.update { it.copy(repeatWeeks = weeks) }
     fun setCapacity(n: Int) = _ui.update { it.copy(capacity = n.coerceIn(1, 40)) }
@@ -309,6 +313,9 @@ class CreateMatchViewModel : ViewModel() {
                             level = if (s.quick) "todos" else s.level,
                             lookingFor = if (s.quick) "" else s.lookingFor.trim(),
                             roles = roles,
+                            // Mexeu em algum interruptor: os demais da modalidade contam como "não".
+                            options = if (s.quick || s.options.isEmpty()) emptyMap()
+                            else OptionCatalog.forSport(s.sport).associate { it.key to (s.options[it.key] ?: false) },
                         ),
                     )
                 }
@@ -426,6 +433,11 @@ fun CreateMatchScreen(
                 // Tudo que é opcional fica recolhido: quem não abre, não vê.
                 StepCard("＋", "Mais opções", accent, onHeaderClick = { moreOptions = !moreOptions }, expanded = moreOptions) {
                     if (moreOptions) {
+                        val defs = OptionCatalog.forSport(ui.sport)
+                        if (defs.isNotEmpty()) {
+                            Text("O que vai ter", style = MaterialTheme.typography.titleSmall)
+                            defs.forEach { d -> OptionSwitch(d.label, ui.options[d.key] ?: false, { vm.setOption(d.key, it) }) }
+                        }
                         Text("Nível", style = MaterialTheme.typography.titleSmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             listOf("todos" to "Todos", "iniciante" to "Novato", "intermediario" to "Médio", "avancado" to "Craque").forEach { (key, label) ->

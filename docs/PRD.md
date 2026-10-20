@@ -501,3 +501,9 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - Testes: JUnit local em `app/src/test` (`./gradlew :app:testDebugUnitTest`). Cobertura mínima (funções/rateio); ampliar com o modo dono.
 - Pendentes de qualidade: Crashlytics (precisa projeto Firebase e `google-services.json`), LGPD, push FCM.
 - Direção de negócio, concorrentes e entrevista com donos: `docs/REVISAO-SENIOR-2026-10.md`. Nada de nível 3 (dono, Pix, destaque) antes da entrevista de 21/10.
+
+## 15. Opções por esporte e cartão novo (20/10/2026)
+- **Interruptores por modalidade** ("Mais opções" > "O que vai ter"): futebol/futsal (bola, colete), vôlei/futevôlei/biribol (bola, rede), basquete (bola), raquete (raquete, bolinha), corrida/ciclismo/caminhada (água). Verde = sim, cinza = não. Quem não abre "Mais opções" não vê nada; se mexer em um, os demais da modalidade valem "não". Catálogo em `data/Options.kt`.
+- **Banco:** `0018_opcoes_jogo.sql` (coluna `matches.options`, `matches_feed.options`, RPC `set_match_options`). **A rodar no Supabase**; sem ela o app funciona e só não grava/mostra as opções.
+- **Cartão do jogo** (`MatchTicket`): capa com foto da modalidade, horário como placar, selo "Falta goleiro"/"Evento", preço por pessoa ou "Grátis", pontinhos de equipamento e estado (Entrar/Lotado/Cancelado). Detalhe do jogo mostra o resumo de equipamento.
+- **Ficou de fora:** rostos de quem vai (precisa de participantes no feed), perfil do dono e destaque pago (nível 3, depois da entrevista de 21/10).
