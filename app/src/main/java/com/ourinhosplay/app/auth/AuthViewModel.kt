@@ -95,6 +95,9 @@ class AuthViewModel : ViewModel() {
 
     fun signOut() = run("sair") { auth.signOut() }
 
+    /** Depois que o servidor apagou a conta: limpa a sessão local (o token já não vale mais). */
+    fun accountDeleted() = run("sair") { auth.signOut(io.github.jan.supabase.auth.SignOutScope.LOCAL) }
+
     private fun run(what: String, block: suspend () -> Unit) {
         _ui.update { it.copy(busy = true, error = null, info = null) }
         viewModelScope.launch {

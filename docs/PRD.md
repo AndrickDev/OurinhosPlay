@@ -395,7 +395,7 @@ Cada sprint termina com um **APK instalado e testado no celular**.
 - [ ] Ícone e nome finais
 
 ### Dívidas conscientes (adiadas por decisão)
-- [ ] LGPD: política de privacidade, exclusão de conta no app, consentimento de localização
+- [ ] LGPD: política de privacidade e consentimento de localização (exclusão de conta no app já existe, seção 16)
 - [ ] Publicação Play Store (Data Safety, assinatura de release)
 - [ ] Cold start < 1.5s (Baseline Profiles)
 - [ ] Mapa embutido (MapLibre + OSM)
@@ -504,6 +504,14 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 
 ## 15. Opções por esporte e cartão novo (20/10/2026)
 - **Interruptores por modalidade** ("Mais opções" > "O que vai ter"): futebol/futsal (bola, colete), vôlei/futevôlei/biribol (bola, rede), basquete (bola), raquete (raquete, bolinha), corrida/ciclismo/caminhada (água). Verde = sim, cinza = não. Quem não abre "Mais opções" não vê nada; se mexer em um, os demais da modalidade valem "não". Catálogo em `data/Options.kt`.
-- **Banco:** `0018_opcoes_jogo.sql` (coluna `matches.options`, `matches_feed.options`, RPC `set_match_options`). **A rodar no Supabase**; sem ela o app funciona e só não grava/mostra as opções.
+- **Banco:** `0018_opcoes_jogo.sql` (coluna `matches.options`, `matches_feed.options`, RPC `set_match_options`). Aplicada em 20/10 via CLI.
 - **Cartão do jogo** (`MatchTicket`): capa com foto da modalidade, horário como placar, selo "Falta goleiro"/"Evento", preço por pessoa ou "Grátis", pontinhos de equipamento e estado (Entrar/Lotado/Cancelado). Detalhe do jogo mostra o resumo de equipamento.
-- **Ficou de fora:** rostos de quem vai (precisa de participantes no feed), perfil do dono e destaque pago (nível 3, depois da entrevista de 21/10).
+- **Ficou de fora:** perfil do dono e destaque pago (nível 3, depois da entrevista de 21/10).
+
+## 16. Admin, rostos, exclusão de conta e versão (20/10/2026)
+- **Supabase por CLI:** projeto vinculado (`npx supabase link`), histórico 0001-0018 sincronizado. Fluxo: `npx supabase db push` (ver pendentes com `migration list`), consultas com `npx supabase db query --linked "..."`.
+- **Painel admin > Métricas** (`AdminMetricsTab.kt`, `data/Metrics.kt`): jogadores, ativos 30d, jogos, vagas preenchidas, % não cancelados, jogos por esporte e por local. Usa `admin_metrics()` (0017), só admin.
+- **Rostos no cartão:** `matches_feed.faces` (0019) traz a inicial dos 5 primeiros participantes; `Faces` em `Components.kt` mostra círculos sobrepostos e "+N". Sem foto de perfil por ora (decisão: só inicial, menos dado pessoal).
+- **Exclusão de conta:** Perfil > "Excluir minha conta" > confirmação > RPC `delete_my_account()` (0019). Apaga `auth.users`; cascade remove perfil, participações, amigos e jogos criados pela pessoa. Admin não se exclui por aqui; quem criou jogo futuro com outras pessoas precisa cancelá-lo antes.
+- **Versão:** rodapé do Perfil, `VERSION_NAME (VERSION_CODE)` do `BuildConfig`.
+- **Testes:** `FacesTest`, `MetricsTest` (JUnit local).

@@ -73,6 +73,8 @@ data class MatchCard(
     @SerialName("roles_open") val rolesOpen: List<String> = emptyList(),
     /** Interruptores do criador (bola, rede...); vazio se não personalizou (migration 0018). */
     val options: Map<String, Boolean> = emptyMap(),
+    /** Iniciais dos primeiros participantes (migration 0019); vazio se a migration ainda não rodou. */
+    val faces: List<String> = emptyList(),
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }

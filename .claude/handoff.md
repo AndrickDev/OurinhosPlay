@@ -1,23 +1,20 @@
-# Handoff (20/10/2026, madrugada)
+# Handoff (20/10/2026, noite)
 
-## Onde paramos
-Cartão novo + interruptores de equipamento por esporte, prontos e instalados no emulador `ourinhos_pixel` (testes JUnit passam, app compila). Entrevista com 3 donos é **quarta 21/10**; nada nível 3 (dono, Pix, destaque) antes dela.
+## Estado
+Entrevista com 3 donos: **quarta 21/10**. Nada nível 3 do modo dono antes dela (>=2 de 3 aceitarem piloto = começa; senão não).
+Commit local `3e4c4aa` + mudanças **não commitadas** (sem push, sem commit: usuário não pediu).
 
-## Feito (commit local, sem push)
-- `data/Options.kt`: catálogo de interruptores por modalidade (bola, colete, rede, raquete, bolinha, água).
-- `supabase/migrations/0018_opcoes_jogo.sql`: `matches.options`, `matches_feed.options`, RPC `set_match_options`. **NÃO rodada no Supabase.** Sem ela o app funciona, só não grava/mostra as opções.
-- `CreateMatch.kt`: "Mais opções" > "O que vai ter" (interruptor verde/cinza; mexeu em um, os outros da modalidade valem "não").
-- `Components.kt`: `MatchTicket` redesenhado (capa com foto, horário placar, selo, preço/pessoa, pontinhos, estado) e `OptionSwitch`.
-- `MatchDetail.kt`: resumo de equipamento. PRD seção 15.
+## Feito hoje (não commitado)
+- Supabase por CLI: projeto vinculado, histórico 0001-0018 aplicado e sincronizado (`npx supabase migration list|db push|db query --linked`). Jogo de teste "Pelada de terca" apagado.
+- Painel admin > aba **Métricas** (`ui/AdminMetricsTab.kt`, `data/Metrics.kt`), testada no emulador com dados reais.
+- **Rostos** (iniciais, até 4 + "+N") no cartão: `Faces` em `Components.kt`, coluna `faces` no feed.
+- **Exclusão de conta**: Perfil > "Excluir minha conta" > RPC `delete_my_account`; erro aparece no Perfil. Bloqueia admin e quem tem jogo futuro com outras pessoas.
+- **Versão** no rodapé do Perfil. Testes: `FacesTest`, `MetricsTest`. Lint 0 erros.
+- Docs: PRD seção 16.
 
-## Retomar aqui (ordem)
-1. Usuário roda no SQL Editor: 0016 (confirmar), 0017 e 0018.
-2. Criar jogo novo com interruptor ligado e conferir os pontinhos no cartão. Apagar o jogo de teste "Pelada de terca" (criado antes da 0018).
-3. Avaliar o design no celular real (Galaxy S21 FE) e ajustar cartão se preciso. Interruptores antigos (laranja) vs novos (verde): decidir se uniformiza.
-4. Depois da entrevista (21/10): se >=2 de 3 donos aceitarem piloto, começar modo dono (`owner_id`, RLS, perfil público, destaque pago). Senão, não construir.
-5. Pendentes: rostos de quem vai no cartão (precisa participantes no feed), push/Firebase, Crashlytics, LGPD, tela de métricas no Painel admin (usa 0017), trocar fotos com marca (futsal, biribol) antes da Play Store.
-
-## Decisões vigentes
-- Só Ourinhos por ora. Modo dono dentro do mesmo app. WhatsApp só como entrada.
-- Usuário final vê só o que importa; personalização fica atrás de "Mais opções".
-- Commit/push só quando o usuário pedir; commits sem Co-Authored-By. Push ainda não autorizado.
+## Pendente
+1. **`0019_rostos_e_exclusao_conta.sql` NÃO aplicada em produção** (testada só em transação com rollback). Sem ela: rostos não aparecem e exclusão de conta falha. Rodar `npx supabase db push` com ok do usuário.
+2. Testar no emulador: criar jogo com interruptor ligado (pontinhos), rostos após a 0019, fluxo de exclusão com conta de teste.
+3. Avaliar design no S21 FE; decidir se os 7 interruptores Material (CreateMatch.kt:426,488,585; Profile.kt:161; AdminScreen.kt:245,468,660) ficam verdes como `OptionSwitch`.
+4. Firebase/Crashlytics/push (usuário quer configurar depois), política de privacidade e consentimento de localização, fotos com marca (futsal, biribol) antes da Play Store.
+5. Decidir commit de `supabase/config.toml` e `supabase/.gitignore` (init padrão, sem segredo).

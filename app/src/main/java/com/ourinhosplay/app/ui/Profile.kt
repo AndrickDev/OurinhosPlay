@@ -39,13 +39,14 @@ import com.ourinhosplay.app.data.FriendsRepository
 import kotlinx.coroutines.launch
 
 @Composable
-fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, onAdmin: () -> Unit) {
+fun ProfileScreen(displayName: String, onSignOut: () -> Unit, onAccountDeleted: () -> Unit, isAdmin: Boolean, onAdmin: () -> Unit) {
     val scope = rememberCoroutineScope()
     var friends by remember { mutableStateOf<List<Friend>>(emptyList()) }
     var input by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var gallery by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     var mine by remember { mutableStateOf<List<com.ourinhosplay.app.data.MatchCard>>(emptyList()) }
     LaunchedEffect(Unit) {
         runCatching { com.ourinhosplay.app.data.MineRepository.matches() }.onSuccess { mine = it }
@@ -68,6 +69,37 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
         }
     }
 
+
+    fun deleteAccount() {
+        if (busy) return
+        busy = true
+        message = null
+        scope.launch {
+            runCatching { com.ourinhosplay.app.data.AccountRepository.deleteMine() }
+                .onSuccess { onAccountDeleted() }
+                .onFailure { e -> message = (e as? BusinessException)?.message ?: "Sem conexão. Tente de novo." }
+            busy = false
+        }
+    }
+
+    if (confirmDelete) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Excluir sua conta?") },
+            text = {
+                Text(
+                    "Isso apaga seu perfil, suas participações, seus amigos e os jogos que você criou. " +
+                        "Não dá para desfazer.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; deleteAccount() }) {
+                    Text("Excluir", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") } },
+        )
+    }
     if (gallery) {
         ArtGallery(onClose = { gallery = false })
         return
@@ -177,6 +209,18 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, isAdmin: Boolean, 
             }
         }
         OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Sair") }
+        TextButton(
+            onClick = { confirmDelete = true },
+            enabled = !busy,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        ) { Text("Excluir minha conta", color = MaterialTheme.colorScheme.error) }
+        message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+        Text(
+            "Ourinhos Play v${com.ourinhosplay.app.BuildConfig.VERSION_NAME} (${com.ourinhosplay.app.BuildConfig.VERSION_CODE})",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
+        )
     }
 }
 

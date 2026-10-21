@@ -8,6 +8,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import com.ourinhosplay.app.R
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -288,6 +289,7 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SlotBar(m.taken, m.capacity, color, Modifier.weight(1f))
+                Faces(m.faces, m.taken, color)
                 Text("${m.taken}/${m.capacity}", style = MaterialTheme.typography.labelLarge)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -333,4 +335,27 @@ fun formatDuration(min: Int): String = when {
     min < 60 -> "$min min"
     min % 60 == 0 -> "${min / 60}h"
     else -> "${min / 60}h%02d".format(min % 60)
+}
+
+/** Rostos sobrepostos com a inicial de quem já vai; "+N" quando há mais gente do que rostos. */
+@Composable
+private fun Faces(faces: List<String>, taken: Int, color: Color) {
+    if (faces.isEmpty()) return
+    val shown = faces.take(4)
+    val extra = com.ourinhosplay.app.data.hiddenFaces(taken, shown.size)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
+        shown.forEach { initial ->
+            Box(
+                Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .border(1.5.dp, Palette.Tribuna, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Text(initial, style = MaterialTheme.typography.labelMedium, color = Palette.Noite) }
+        }
+        if (extra > 0) {
+            Text("+$extra", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 10.dp))
+        }
+    }
 }

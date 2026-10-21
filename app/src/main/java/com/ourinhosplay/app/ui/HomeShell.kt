@@ -76,7 +76,7 @@ private enum class Tab(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = viewModel()) {
+fun HomeShell(displayName: String, onSignOut: () -> Unit, onAccountDeleted: () -> Unit, vm: HomeViewModel = viewModel()) {
     var tab by rememberSaveable { mutableIntStateOf(Tab.Feed.ordinal) }
     // Cada abertura usa um ViewModel novo (chave diferente), para não herdar "criado" da anterior.
     var createKey by rememberSaveable { mutableIntStateOf(0) }
@@ -175,7 +175,7 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, vm: HomeViewModel = vi
                     creating = true
                 })
                 Tab.Venues -> VenuesScreen(vm)
-                Tab.Profile -> ProfileScreen(displayName, onSignOut, isAdmin) { adminOpen = true }
+                Tab.Profile -> ProfileScreen(displayName, onSignOut, onAccountDeleted, isAdmin) { adminOpen = true }
             }
         }
     }

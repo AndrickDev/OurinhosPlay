@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
                             is AuthState.SignedIn -> HomeShell(
                                 displayName = s.profile.fullName,
                                 onSignOut = vm::signOut,
+                                onAccountDeleted = vm::accountDeleted,
                             )
                         }
                     }

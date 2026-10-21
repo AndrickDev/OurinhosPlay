@@ -1,6 +1,7 @@
 package com.ourinhosplay.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.EventBusy
 import androidx.compose.material.icons.rounded.Stadium
@@ -81,6 +82,8 @@ data class AdminUi(
     val matches: Remote<MatchCard> = Remote(),
     val blocks: Remote<VenueBlock> = Remote(),
     val users: Remote<AdminUser> = Remote(),
+    val metrics: com.ourinhosplay.app.data.AdminMetrics? = null,
+    val metricsError: String? = null,
     val busy: Boolean = false,
     val message: String? = null,
 )
@@ -104,6 +107,11 @@ class AdminViewModel : ViewModel() {
             _ui.update {
                 it.copy(users = u.fold({ d -> Remote(false, null, d) }, { e -> Remote(false, friendlyError(e)) }))
             }
+        }
+        viewModelScope.launch {
+            runCatching { com.ourinhosplay.app.data.MetricsRepository.load() }
+                .onSuccess { m -> _ui.update { it.copy(metrics = m, metricsError = null) } }
+                .onFailure { e -> _ui.update { it.copy(metricsError = friendlyError(e)) } }
         }
         viewModelScope.launch {
             val b = runCatching { AdminRepository.blocks() }
@@ -284,6 +292,8 @@ fun AdminScreen(
                 }
             }
 
+            5 -> MetricsTab(ui.metrics, ui.metricsError, vm::refresh)
+
             4 -> when {
                 ui.users.loading && ui.users.data.isEmpty() -> Loading()
                 ui.users.error != null -> Problem(ui.users.error!!, vm::refresh)
@@ -411,7 +421,7 @@ fun AdminScreen(
 }
 
 @Composable
-private fun Loading() = Column(
+internal fun Loading() = Column(
     Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
 ) { CircularProgressIndicator() }
 
@@ -421,7 +431,7 @@ private fun Empty(text: String) = Column(
 ) { Text(text, style = MaterialTheme.typography.bodyLarge) }
 
 @Composable
-private fun Problem(text: String, retry: () -> Unit) = Column(
+internal fun Problem(text: String, retry: () -> Unit) = Column(
     Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
 ) {
     Text(text, style = MaterialTheme.typography.bodyLarge)
@@ -712,9 +722,10 @@ private val ADMIN_TABS = listOf(
     AdminTabItem("Quadras", androidx.compose.material.icons.Icons.Rounded.Stadium),
     AdminTabItem("Bloqueios", androidx.compose.material.icons.Icons.Rounded.EventBusy),
     AdminTabItem("Pessoas", androidx.compose.material.icons.Icons.Rounded.Group),
+    AdminTabItem("Métricas", androidx.compose.material.icons.Icons.Rounded.BarChart),
 )
 
-/** Cinco áreas do painel: ícone em cima e rótulo curto embaixo, cabem em qualquer largura. */
+/** Seis áreas do painel: ícone em cima e rótulo curto embaixo, cabem em qualquer largura. */
 @Composable
 private fun AdminTabs(selected: Int, onSelect: (Int) -> Unit) {
     Row(

@@ -229,3 +229,10 @@ object WeatherRepository {
         )
     }.getOrNull()
 }
+
+// ------------------------------------------------------------------ conta
+
+object AccountRepository {
+    /** Exclui a conta de quem está logado (migration 0019). Depois disso, só falta sair da sessão local. */
+    suspend fun deleteMine() = rpcOrBusiness("delete_my_account", buildJsonObject {}, "Não foi possível excluir a conta")
+}
