@@ -21,8 +21,6 @@ enum class Sound {
     Chime,
     /** Estalo curto: frase enviada no chat. */
     Pop,
-    /** Dois toques descendo: saiu do jogo. */
-    Down,
     /** Clique de câmera: foto enviada. */
     Shutter,
     /** Arpejo curto: jogo publicado. */
@@ -88,7 +86,6 @@ object Sfx {
         Sound.Whistle -> DoubleArray(0) // gravação real: res/raw/apito_juiz.wav
         Sound.Chime -> mix(bell(784.0, 0.45), bell(1175.0, 0.55), 0.11)
         Sound.Pop -> sweep(720.0, 260.0, 0.09)
-        Sound.Down -> mix(bell(587.0, 0.30, 0.45), bell(392.0, 0.45, 0.45), 0.12)
         Sound.Shutter -> mix(noiseBurst(0.035), noiseBurst(0.05, 0.4), 0.07)
         Sound.Fanfare -> {
             var a = bell(523.0, 0.40, 0.45)

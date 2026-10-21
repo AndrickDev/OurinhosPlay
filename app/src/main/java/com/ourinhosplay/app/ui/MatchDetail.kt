@@ -241,10 +241,8 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
     val match = ui.match
     // O ViewModel sobrevive entre aberturas: só comemora o que acontece com a tela aberta.
     val baseCelebrations = remember { ui.celebrations }
-    val baseLeaves = remember { ui.leaves }
     val baseArrivals = remember { ui.arrivals }
     val celebrate = ui.celebrations - baseCelebrations
-    val leftNow = ui.leaves - baseLeaves
     val arrivedNow = ui.arrivals - baseArrivals
 
     LaunchedEffect(ui.deleted) { if (ui.deleted) onBack() }
@@ -270,7 +268,6 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
         }
     }
 
-    LaunchedEffect(leftNow) { if (leftNow > 0) Sfx.fire(context, Sound.Down) }
     LaunchedEffect(arrivedNow) { if (arrivedNow > 0) Sfx.fire(context, Sound.Chime) }
 
     // Quem está no jogo ganha a notificação com cronômetro; quem sai (ou jogo acabou) perde.
