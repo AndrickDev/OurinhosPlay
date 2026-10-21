@@ -13,8 +13,8 @@ Commit local `3e4c4aa` + mudanças **não commitadas** (sem push, sem commit: us
 - Docs: PRD seção 16.
 
 ## Pendente
-1. **`0019_rostos_e_exclusao_conta.sql` NÃO aplicada em produção** (testada só em transação com rollback). Sem ela: rostos não aparecem e exclusão de conta falha. Rodar `npx supabase db push` com ok do usuário.
+1. ~~0019~~ aplicada em produção (20/10). Falta testar no emulador: rostos no cartão e fluxo de exclusão com conta de teste (conta admin é bloqueada).
 2. Testar no emulador: criar jogo com interruptor ligado (pontinhos), rostos após a 0019, fluxo de exclusão com conta de teste.
-3. Avaliar design no S21 FE; decidir se os 7 interruptores Material (CreateMatch.kt:426,488,585; Profile.kt:161; AdminScreen.kt:245,468,660) ficam verdes como `OptionSwitch`.
+3. Avaliar design no S21 FE (ícones novos em SportIcons.kt, estado vazio, botão Entrar); decidir se os 7 interruptores Material (CreateMatch.kt:426,488,585; Profile.kt:161; AdminScreen.kt:245,468,660) ficam verdes como `OptionSwitch`.
 4. Firebase/Crashlytics/push (usuário quer configurar depois), política de privacidade e consentimento de localização, fotos com marca (futsal, biribol) antes da Play Store.
-5. Decidir commit de `supabase/config.toml` e `supabase/.gitignore` (init padrão, sem segredo).
+5. Ícones repetidos resolvidos; tênis ainda usa o do Material.

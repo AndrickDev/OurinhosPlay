@@ -76,19 +76,19 @@ val Sport.color: Color
 val Sport.icon: ImageVector
     get() = when (this) {
         Sport.Futebol -> Icons.Rounded.SportsSoccer
-        Sport.Futevolei -> Icons.Rounded.SportsVolleyball
+        Sport.Futevolei -> FutevoleiIcon
         Sport.Volei -> Icons.Rounded.SportsVolleyball
         Sport.Basquete -> Icons.Rounded.SportsBasketball
-        Sport.BeachTennis -> Icons.Rounded.SportsTennis
-        Sport.Futsal -> Icons.Rounded.SportsSoccer
+        Sport.BeachTennis -> BeachTennisIcon
+        Sport.Futsal -> FutsalIcon
         Sport.Tenis -> Icons.Rounded.SportsTennis
-        Sport.Padel -> Icons.Rounded.SportsTennis
+        Sport.Padel -> PadelIcon
         Sport.Natacao -> Icons.Rounded.Pool
-        Sport.Biribol -> Icons.Rounded.SportsVolleyball
+        Sport.Biribol -> BiribolIcon
         Sport.Corrida -> Icons.AutoMirrored.Rounded.DirectionsRun
         Sport.Ciclismo -> Icons.Rounded.DirectionsBike
         Sport.Caminhada -> Icons.AutoMirrored.Rounded.DirectionsWalk
-        Sport.TenisDeMesa -> Icons.Rounded.SportsTennis
+        Sport.TenisDeMesa -> TenisDeMesaIcon
     }
 
 fun localTime(iso: String): ZonedDateTime? =
@@ -304,7 +304,7 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
                 val (label, bg, fg) = when {
                     cancelled -> Triple("Cancelado", Palette.Tribuna, Palette.Giz)
                     full -> Triple("Lotado", Palette.Tribuna, Palette.Giz)
-                    else -> Triple("Entrar", Palette.Pista, Palette.Noite)
+                    else -> Triple("Entrar", Palette.Pista, Palette.Giz)
                 }
                 Text(
                     label, style = MaterialTheme.typography.labelLarge, color = fg,

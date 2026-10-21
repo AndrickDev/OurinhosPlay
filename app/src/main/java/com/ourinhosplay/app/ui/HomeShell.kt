@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -335,8 +337,8 @@ private fun FeedScreen(vm: HomeViewModel, onOpen: (String) -> Unit) {
         }
         RemoteList(
             state = Remote(ui.matches.loading, ui.matches.error, items),
-            emptyTitle = "Nenhum jogo por aqui",
-            emptyText = "Seja o primeiro: crie um jogo e chame a galera.",
+            emptyTitle = "Nenhum jogo marcado",
+            emptyText = "Marque o primeiro e chame a galera.",
             onRetry = vm::refreshFeed,
         ) { item ->
             when (item) {
@@ -444,7 +446,8 @@ private fun <T> RemoteList(
             OutlinedButton(onClick = onRetry) { Text("Tentar de novo") }
         }
         state.data.isEmpty() -> Centered {
-            SportArt(null, Modifier.size(110.dp), ink = Palette.Neblina)
+            EmptyCourt(Modifier.size(width = 180.dp, height = 112.dp))
+            Spacer(Modifier.height(20.dp))
             Text(emptyTitle, style = MaterialTheme.typography.headlineSmall)
             Text(
                 emptyText,

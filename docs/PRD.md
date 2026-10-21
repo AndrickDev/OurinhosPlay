@@ -515,3 +515,5 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Exclusão de conta:** Perfil > "Excluir minha conta" > confirmação > RPC `delete_my_account()` (0019). Apaga `auth.users`; cascade remove perfil, participações, amigos e jogos criados pela pessoa. Admin não se exclui por aqui; quem criou jogo futuro com outras pessoas precisa cancelá-lo antes.
 - **Versão:** rodapé do Perfil, `VERSION_NAME (VERSION_CODE)` do `BuildConfig`.
 - **Testes:** `FacesTest`, `MetricsTest` (JUnit local).
+- **Visual (20/10, noite):** ícones próprios por modalidade em `ui/SportIcons.kt` (futevôlei, futsal, biribol, beach tennis, padel, tênis de mesa; o tênis usa o do Material); estado vazio com quadra vista de cima (`ui/EmptyCourt.kt`); botão "Entrar" do cartão com texto claro; som "Down" (saiu do jogo) removido por soar como desconexão de cabo.
+- **Banco:** `0019` aplicada em produção em 20/10 via `db push`.
