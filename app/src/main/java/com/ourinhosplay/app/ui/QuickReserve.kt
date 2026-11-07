@@ -97,7 +97,7 @@ fun QuickReserveScreen(
     venues: List<Venue>,
     courts: List<Court>,
     onClose: () -> Unit,
-    onCreated: () -> Unit,
+    onCreated: (String?) -> Unit,
     vm: CreateMatchViewModel = viewModel(),
 ) {
     val ui by vm.ui.collectAsState()
@@ -118,7 +118,7 @@ fun QuickReserveScreen(
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("sport", ui.sport?.key).putString("venue", ui.venueId).putString("court", ui.courtId).apply()
             Sfx.fire(context, Sound.Fanfare)
-            onCreated()
+            onCreated(ui.createdId)
         }
     }
 

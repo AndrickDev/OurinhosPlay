@@ -211,7 +211,8 @@ object CreateMatchRepository {
             },
         ).decodeList<Availability>().first()
 
-    suspend fun create(m: NewMatch) {
+    /** Cria o jogo e devolve o id (para abrir o detalhe logo depois). */
+    suspend fun create(m: NewMatch): String? {
         try {
             val created = db.postgrest.rpc(
                 "create_match",
@@ -235,10 +236,12 @@ object CreateMatchRepository {
                     if (m.roles.isNotEmpty()) put("p_roles", m.roles.toJsonArray())
                 },
             )
+            val id = runCatching {
+                created.decodeAs<kotlinx.serialization.json.JsonObject>()["id"]
+                    ?.let { (it as kotlinx.serialization.json.JsonPrimitive).content }
+            }.getOrNull()
             // Migration 0018: falha aqui não derruba a criação (banco sem ela segue normal).
             if (m.options.isNotEmpty()) runCatching {
-                val id = created.decodeAs<kotlinx.serialization.json.JsonObject>()["id"]
-                    ?.let { (it as kotlinx.serialization.json.JsonPrimitive).content }
                 if (id != null) db.postgrest.rpc(
                     "set_match_options",
                     kotlinx.serialization.json.buildJsonObject {
@@ -247,6 +250,7 @@ object CreateMatchRepository {
                     },
                 )
             }
+            return id
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
             // A 1ª linha da mensagem é o texto da exceção do Postgres (sem URL nem cabeçalhos).
             throw BusinessException(e.message?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() }

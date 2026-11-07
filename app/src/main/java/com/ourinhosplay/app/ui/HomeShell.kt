@@ -120,12 +120,14 @@ fun HomeShell(displayName: String, onSignOut: () -> Unit, onAccountDeleted: () -
     if (creating) {
         val createVm: CreateMatchViewModel = viewModel(key = "create-$createKey")
         LaunchedEffect(createKey) { template?.let { createVm.prefill(it) } }
-        val finish = {
+        // Publicou: abre o jogo criado (mostra código, "Chamar a galera" e cronômetro).
+        val finish = { id: String? ->
             creating = false
             createMode = null
             template = null
             vm.refreshFeed()
             vm.refreshMine()
+            if (id != null) openMatch = id
         }
         val close = { creating = false; createMode = null; template = null }
         when (createMode) {

@@ -130,6 +130,8 @@ data class CreateUi(
     val busy: Boolean = false,
     val error: String? = null,
     val created: Boolean = false,
+    /** Id do primeiro jogo criado: a tela abre o detalhe dele em seguida. */
+    val createdId: String? = null,
 ) {
     val startsAt: Instant get() = LocalDateTime.of(date, time).atZone(ZONE).toInstant()
     val inFuture: Boolean get() = startsAt.isAfter(Instant.now())
@@ -296,6 +298,7 @@ class CreateMatchViewModel : ViewModel() {
                 listOf(RoleSpec(template.key, s.roleSlots, s.roleReserved, s.roleReleaseHours, s.rolePerk))
             } else emptyList()
             var done = 0
+            var firstId: String? = null
             var failure: Throwable? = null
             for (i in 0 until total) {
                 val r = runCatching {
@@ -322,14 +325,15 @@ class CreateMatchViewModel : ViewModel() {
                         ),
                     )
                 }
-                if (r.isSuccess) done++ else { failure = r.exceptionOrNull(); break }
+                if (r.isSuccess) { done++; firstId = firstId ?: r.getOrNull() } else { failure = r.exceptionOrNull(); break }
             }
             _ui.update {
                 when {
-                    done == total -> it.copy(busy = false, created = true)
+                    done == total -> it.copy(busy = false, created = true, createdId = firstId)
                     done > 0 -> it.copy(
                         busy = false,
                         created = true,
+                        createdId = firstId,
                         error = null,
                     ).also { _ -> lastPartial = "Criamos $done de $total jogos. O próximo bateu em outro horário." }
                     else -> {
@@ -353,7 +357,7 @@ fun CreateMatchScreen(
     venues: List<Venue>,
     courts: List<Court>,
     onClose: () -> Unit,
-    onCreated: () -> Unit,
+    onCreated: (String?) -> Unit,
     vm: CreateMatchViewModel = viewModel(),
 ) {
     val ui by vm.ui.collectAsState()
@@ -366,7 +370,7 @@ fun CreateMatchScreen(
         val ctx = androidx.compose.ui.platform.LocalContext.current
         androidx.compose.runtime.LaunchedEffect(Unit) {
             Sfx.fire(ctx, Sound.Fanfare)
-            onCreated()
+            onCreated(ui.createdId)
         }
     }
 
