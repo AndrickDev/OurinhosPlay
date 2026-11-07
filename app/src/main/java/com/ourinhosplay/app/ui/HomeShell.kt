@@ -562,7 +562,7 @@ private fun MineScreen(vm: HomeViewModel, onOpen: (String) -> Unit, onAgain: (Ma
             topPadding = 16.dp,
         ) { m ->
             Column {
-                MatchTicket(m, onClick = { onOpen(m.id) })
+                MatchTicket(m, onClick = { onOpen(m.id) }, joined = true)
                 if (tabIndex == 1) {
                     TextButton(onClick = { onAgain(m) }) { Text("Jogar de novo") }
                 }

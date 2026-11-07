@@ -230,9 +230,10 @@ private fun OptionDots(sport: Sport?, options: Map<String, Boolean>) {
     }
 }
 
-/** Cartão do jogo: capa com a foto da modalidade e o horário como placar; embaixo local, vagas, preço, equipamento e estado. */
+/** Cartão do jogo: capa com a foto da modalidade e o horário como placar; embaixo local, vagas, preço, equipamento e estado.
+ * [joined] = a pessoa já está no jogo (Agenda): o botão vira "Você vai" em vez de "Entrar"/"Lotado". */
 @Composable
-fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier, joined: Boolean = false) {
     val sport = Sport.from(m.sport)
     val color = sport?.color ?: Palette.Pista
     val cancelled = m.status == "cancelled"
@@ -309,6 +310,7 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
                 Spacer(Modifier.weight(1f))
                 val (label, bg, fg) = when {
                     cancelled -> Triple("Cancelado", Palette.Tribuna, Palette.Giz)
+                    joined -> Triple("Você vai", Palette.Tribuna, Palette.Giz)
                     full -> Triple("Lotado", Palette.Tribuna, Palette.Giz)
                     else -> Triple("Entrar", Palette.Pista, Palette.Giz)
                 }
