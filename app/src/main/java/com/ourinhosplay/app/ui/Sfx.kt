@@ -113,30 +113,36 @@ object Sfx {
     }
 
     /** Apito real (CC0, SpliceSound via Wikimedia Commons) tocado por MediaPlayer. */
-    private suspend fun playRaw(context: Context, resId: Int) {
-        val mp = android.media.MediaPlayer.create(context, resId) ?: return
+    private suspend fun playRaw(context: Context, resId: Int, attrs: AudioAttributes) {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val mp = android.media.MediaPlayer.create(context, resId, attrs, am.generateAudioSessionId()) ?: return
         mp.setOnCompletionListener { it.release() }
         mp.setOnErrorListener { p, _, _ -> p.release(); true }
         mp.start()
     }
 
-    /** Respeita a preferência do app e o toque do celular (silencioso/vibrar = sem som). */
-    suspend fun play(context: Context, sound: Sound) = withContext(Dispatchers.Default) {
-        if (!isOn(context)) return@withContext
-        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (am.ringerMode != AudioManager.RINGER_MODE_NORMAL) return@withContext
+    /**
+     * Respeita a preferência do app e o toque do celular (silencioso/vibrar = sem som).
+     * [loud] = cronômetro da partida: toca como alarme, mesmo no silencioso, porque foi a pessoa
+     * que ligou o cronômetro e precisa ouvir o apito na quadra.
+     */
+    suspend fun play(context: Context, sound: Sound, loud: Boolean = false) = withContext(Dispatchers.Default) {
+        if (!loud) {
+            if (!isOn(context)) return@withContext
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (am.ringerMode != AudioManager.RINGER_MODE_NORMAL) return@withContext
+        }
+        val attrs = AudioAttributes.Builder()
+            .setUsage(if (loud) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
         if (sound == Sound.Whistle) {
-            playRaw(context, com.ourinhosplay.app.R.raw.apito_juiz)
+            playRaw(context, com.ourinhosplay.app.R.raw.apito_juiz, attrs)
             return@withContext
         }
         val data = pcm(sound)
         val track = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_GAME)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
+            .setAudioAttributes(attrs)
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)

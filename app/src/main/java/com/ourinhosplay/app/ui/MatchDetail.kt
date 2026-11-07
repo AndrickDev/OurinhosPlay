@@ -42,8 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -418,6 +419,7 @@ private fun Details(
         }
 
         Countdown(m.startsAt, m.endsAt, ui.ended)
+        ClockCard(ui, m, color)
         WeatherCard(m.startsAt, ui.ended)
         if (ui.isCreator && m.isPrivate && m.capacity == 1 && !ui.ended) OpenReservationCard(color, ui.busy, onOpenReservation)
         OrganizationCard(m, ui.isMember, color, onToast, ui.roles, ui.participants)
@@ -783,6 +785,85 @@ private fun parseMillis(iso: String): Long? =
     runCatching { OffsetDateTime.parse(iso).toInstant().toEpochMilli() }.getOrNull()
 
 /** Contagem ao vivo: "Começa em 02:14:35" / "Rolando agora" (some quando encerra). */
+/**
+ * Cronômetro da partida: aparece para quem está na lista perto do horário (30 min antes até
+ * 2 h depois do fim). Roda em [ClockService], então segue apitando com a tela bloqueada.
+ */
+@Composable
+private fun ClockCard(ui: DetailUi, m: MatchCard, color: Color) {
+    val ctx = LocalContext.current
+    val running by ClockService.running.collectAsState()
+    val mine = running?.takeIf { it.matchId == m.id }
+    val start = parseMillis(m.startsAt) ?: return
+    val end = parseMillis(m.endsAt) ?: return
+    val nowWall = System.currentTimeMillis()
+    val inWindow = nowWall in (start - 30 * 60_000)..(end + 2 * 60 * 60_000)
+    if (mine == null && (!ui.isMember || m.status == "cancelled" || !inWindow)) return
+
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (mine == null) {
+            var cfg by remember(m.id) { mutableStateOf(com.ourinhosplay.app.data.ClockConfig.suggest(((end - start) / 60_000).toInt())) }
+            Text("Cronômetro da partida", style = MaterialTheme.typography.titleMedium)
+            Stepper("Tempos", cfg.periods.toString(), { cfg = cfg.copy(periods = cfg.periods - 1).normalized() }, { cfg = cfg.copy(periods = cfg.periods + 1).normalized() })
+            Stepper("Cada tempo", "${cfg.periodMin} min", { cfg = cfg.copy(periodMin = cfg.periodMin - if (cfg.periodMin <= 5) 1 else 5).normalized() }, { cfg = cfg.copy(periodMin = cfg.periodMin + if (cfg.periodMin < 5) 1 else 5).normalized() })
+            if (cfg.periods > 1) {
+                Stepper("Intervalo", if (cfg.breakMin == 0) "sem" else "${cfg.breakMin} min", { cfg = cfg.copy(breakMin = cfg.breakMin - 1).normalized() }, { cfg = cfg.copy(breakMin = cfg.breakMin + 1).normalized() })
+            }
+            Stepper(
+                "Aviso de água",
+                if (cfg.hydrationMin == 0) "sem" else "a cada ${cfg.hydrationMin} min",
+                { cfg = cfg.copy(hydrationMin = (cfg.hydrationMin - 5).coerceAtLeast(0)).normalized() },
+                { cfg = cfg.copy(hydrationMin = if (cfg.hydrationMin == 0) 5 else cfg.hydrationMin + 5).normalized() },
+            )
+            if (running != null) {
+                Text("Há um cronômetro rodando em outro jogo; iniciar aqui encerra aquele.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(onClick = { ClockService.start(ctx, m.id, m.title, cfg) }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                Text("Iniciar com apito")
+            }
+            Text("Apita no fim de cada tempo mesmo com a tela bloqueada e o celular no silencioso.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            var now by remember { mutableStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(mine.state) {
+                while (true) { now = System.currentTimeMillis(); kotlinx.coroutines.delay(250) }
+            }
+            val s = mine.state
+            val done = s.phase == com.ourinhosplay.app.data.ClockPhase.Finished
+            Text(com.ourinhosplay.app.data.MatchClock.label(s) + if (s.paused) " · pausado" else "", style = MaterialTheme.typography.titleMedium)
+            if (!done) {
+                Text(
+                    com.ourinhosplay.app.data.MatchClock.mmss(s.remaining(now)),
+                    style = MaterialTheme.typography.displayLarge,
+                    color = if (s.paused) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                if (!done) {
+                    Button(
+                        onClick = { if (s.paused) ClockService.resume(ctx) else ClockService.pause(ctx) },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color),
+                    ) { Text(if (s.paused) "Retomar" else "Pausar") }
+                    OutlinedButton(onClick = { ClockService.skip(ctx) }, modifier = Modifier.weight(1f).height(48.dp)) {
+                        Text(if (s.phase == com.ourinhosplay.app.data.ClockPhase.Break) "Pular" else "Fim do tempo")
+                    }
+                }
+                TextButton(onClick = { ClockService.stop(ctx) }, modifier = Modifier.height(48.dp)) { Text(if (done) "Fechar" else "Parar") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Stepper(label: String, value: String, onMinus: () -> Unit, onPlus: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        TextButton(onClick = onMinus) { Text("−", style = MaterialTheme.typography.titleLarge) }
+        Text(value, style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(96.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        TextButton(onClick = onPlus) { Text("+", style = MaterialTheme.typography.titleLarge) }
+    }
+}
+
 /** Equipamento do jogo: o que tem e quem leva. Quem está na lista toca "Eu levo". */
 @Composable
 private fun GearPanel(ui: DetailUi, m: MatchCard, onGear: (String, Boolean) -> Unit) {

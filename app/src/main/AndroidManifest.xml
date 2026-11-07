@@ -3,6 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- cronômetro da partida: conta e apita com a tela bloqueada -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="false"
@@ -19,6 +24,14 @@
             </intent-filter>
         </activity>
         <receiver android:name=".ui.ReminderReceiver" android:exported="false" />
+        <service
+            android:name=".ui.ClockService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Cronômetro de partida esportiva iniciado pelo usuário: conta os tempos e apita no fim de cada um com a tela bloqueada." />
+        </service>
     </application>
 
 </manifest>
