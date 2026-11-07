@@ -260,11 +260,17 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
                     "Falta " + m.rolesOpen.joinToString(", ") { com.ourinhosplay.app.data.RoleCatalog.label(it).lowercase() }
                 else -> null
             }
-            if (tag != null) {
-                Text(
-                    tag, style = MaterialTheme.typography.labelMedium, color = Palette.Noite,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(50)).background(Palette.Bola).padding(horizontal = 10.dp, vertical = 4.dp),
-                )
+            val uni = com.ourinhosplay.app.data.MatchTags.isUniversity(m.options)
+            if (tag != null || uni) {
+                Column(Modifier.align(Alignment.TopEnd).padding(12.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (tag != null) {
+                        Text(
+                            tag, style = MaterialTheme.typography.labelMedium, color = Palette.Noite,
+                            modifier = Modifier.clip(RoundedCornerShape(50)).background(Palette.Bola).padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
+                    }
+                    if (uni) UniversityBadge()
+                }
             }
             Row(
                 Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 8.dp),
@@ -358,4 +364,19 @@ private fun Faces(faces: List<String>, taken: Int, color: Color) {
             Text("+$extra", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 10.dp))
         }
     }
+}
+
+/** Selo discreto de jogo universitário: contorno claro sobre a foto, sem cor de destaque. */
+@Composable
+fun UniversityBadge(modifier: Modifier = Modifier) {
+    Text(
+        "Universitário",
+        style = MaterialTheme.typography.labelMedium,
+        color = Color.White,
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Palette.Noite.copy(alpha = 0.7f))
+            .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(50))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    )
 }

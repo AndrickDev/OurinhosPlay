@@ -108,6 +108,8 @@ data class CreateUi(
     val customDuration: Boolean = false,
     val capacity: Int = 10,
     val creatorJoins: Boolean = true,
+    /** Selo "Universitário" (galera de faculdade/república). */
+    val university: Boolean = false,
     /** Valor total da quadra em reais (texto digitado); vazio = sem rateio. */
     val costText: String = "",
     val pixKey: String = "",
@@ -223,6 +225,7 @@ class CreateMatchViewModel : ViewModel() {
     fun setTitle(t: String) = _ui.update { it.copy(title = t.take(60)) }
     fun setDescription(t: String) = _ui.update { it.copy(description = t.take(300)) }
     fun setCreatorJoins(v: Boolean) = _ui.update { it.copy(creatorJoins = v) }
+    fun setUniversity(v: Boolean) = _ui.update { it.copy(university = v) }
     fun setCost(t: String) = _ui.update { it.copy(costText = t.filter { c -> c.isDigit() || c == ',' || c == '.' }.take(8)) }
     fun setPix(t: String) = _ui.update { it.copy(pixKey = t.take(80)) }
     fun setPrivate(v: Boolean) = _ui.update { it.copy(isPrivate = v) }
@@ -314,8 +317,8 @@ class CreateMatchViewModel : ViewModel() {
                             lookingFor = if (s.quick) "" else s.lookingFor.trim(),
                             roles = roles,
                             // Mexeu em algum interruptor: os demais da modalidade contam como "não".
-                            options = if (s.quick || s.options.isEmpty()) emptyMap()
-                            else OptionCatalog.forSport(s.sport).associate { it.key to (s.options[it.key] ?: false) },
+                            options = if (s.quick) emptyMap()
+                            else com.ourinhosplay.app.data.MatchTags.build(s.sport, s.options, s.university),
                         ),
                     )
                 }
@@ -438,6 +441,8 @@ fun CreateMatchScreen(
                             Text("O que vai ter", style = MaterialTheme.typography.titleSmall)
                             defs.forEach { d -> OptionSwitch(d.label, ui.options[d.key] ?: false, { vm.setOption(d.key, it) }) }
                         }
+                        Text("Público", style = MaterialTheme.typography.titleSmall)
+                        OptionSwitch("Universitário (faculdade, república)", ui.university, vm::setUniversity)
                         Text("Nível", style = MaterialTheme.typography.titleSmall)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             listOf("todos" to "Todos", "iniciante" to "Novato", "intermediario" to "Médio", "avancado" to "Craque").forEach { (key, label) ->

@@ -382,6 +382,9 @@ private fun Details(
                     if (sport != null) Icon(sport.icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
                     Text(sport?.label ?: m.sport, style = MaterialTheme.typography.labelLarge, color = Palette.Giz)
                 }
+                if (com.ourinhosplay.app.data.MatchTags.isUniversity(m.options)) {
+                    UniversityBadge(Modifier.align(Alignment.TopEnd).padding(14.dp))
+                }
                 Text(
                     m.title,
                     style = MaterialTheme.typography.headlineLarge,

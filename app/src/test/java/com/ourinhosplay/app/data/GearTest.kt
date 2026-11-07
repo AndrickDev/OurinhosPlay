@@ -53,3 +53,23 @@ class GearTest {
         assertFalse(GearRules.canToggle(r, member = false, ended = false))
     }
 }
+
+class MatchTagsTest {
+    @Test fun semNada_naoMandaOpcoes() =
+        assertEquals(emptyMap<String, Boolean>(), MatchTags.build(Sport.Futebol, emptyMap(), university = false))
+
+    @Test fun universitario_vaiSozinho() =
+        assertEquals(mapOf("universitario" to true), MatchTags.build(Sport.Futebol, emptyMap(), university = true))
+
+    @Test fun interruptorTocado_completaModalidadeEMantemSelo() =
+        assertEquals(
+            mapOf("bola" to true, "colete" to false, "universitario" to true),
+            MatchTags.build(Sport.Futebol, mapOf("bola" to true), university = true),
+        )
+
+    @Test fun seloNaoViraEquipamento() {
+        val opts = mapOf("universitario" to true, "bola" to true)
+        assertTrue(MatchTags.isUniversity(opts))
+        assertEquals(listOf("bola"), OptionCatalog.resolve(Sport.Futebol, opts).map { it.first.key })
+    }
+}

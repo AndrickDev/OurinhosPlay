@@ -56,3 +56,21 @@ object GearRules {
     fun canToggle(row: GearRow, member: Boolean, ended: Boolean): Boolean =
         member && !ended && (row.claim == null || row.mine)
 }
+
+/** Selo "Universitário": guardado em `matches.options` (sem coluna nova), fora dos itens de equipamento. */
+object MatchTags {
+    const val UNIVERSITY = "universitario"
+
+    fun isUniversity(options: Map<String, Boolean>): Boolean = options[UNIVERSITY] == true
+
+    /**
+     * Opções que vão para o banco. Mexeu em algum interruptor: os demais itens da modalidade
+     * contam como "não". O selo só vai quando ligado (jogo comum continua sem nada).
+     */
+    fun build(sport: Sport?, touched: Map<String, Boolean>, university: Boolean): Map<String, Boolean> {
+        val gear = OptionCatalog.forSport(sport)
+        val base = if (touched.keys.none { k -> gear.any { it.key == k } }) emptyMap()
+        else gear.associate { it.key to (touched[it.key] ?: false) }
+        return if (university) base + (UNIVERSITY to true) else base
+    }
+}
