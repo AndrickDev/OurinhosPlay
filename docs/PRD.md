@@ -531,7 +531,7 @@ Ordem combinada: (1) "Eu levo", (2) cronômetro de partida com serviço em prime
 - **Placar no cronômetro (07/11, noite):** Time A × Time B dentro do cartão do cronômetro; toque no número soma gol, "−" desfaz. Fica só no celular de quem controla (`RunningClock.score`, `ClockService.goal`); a notificação mostra o placar e o placar final fica na tela até "Fechar". Some se o Android matar o app. Sem banco.
 - **Sorteio de times (07/11, noite):** cartão "Sortear times" no detalhe para quem está na lista (4+ confirmados, fora de eventos). 2 a 4 times de tamanho igual, goleiros e levantadores espalhados primeiro; "Sortear de novo" e "Mandar no grupo" (texto). Não há nível por jogador, então "equilibrado" = tamanho e funções. Regra em `TeamDraw` (`data/Teams.kt`), testes em `TeamsTest`. Sem banco.
 - **"Jogar de novo"** agora copia também equipamento e selo universitário.
-- **0021** (`0021_opcoes_so_booleanas.sql`): `set_match_options` só aceita `{chave: true|false}` (até 30 chaves); resolve o risco de quebrar o feed. Banco não tinha linhas fora do formato em 07/11. **0021 pendente no banco** (rodar com `npx supabase db query --remote --yes -f`).
+- **0021** (`0021_opcoes_so_booleanas.sql`): `set_match_options` só aceita `{chave: true|false}` (até 30 chaves); resolve o risco de quebrar o feed. Banco não tinha linhas fora do formato em 07/11. **0021 rodada no banco em 07/11.**
 
 ### Roadmap curto (decidido 07/11; nada disto implementado)
 | Fase | O quê | Depende de | Validação para avançar |
