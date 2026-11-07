@@ -8,9 +8,9 @@ Rodada "dia do jogo e comunidade" pronta: 7 commits locais `4e09477..85c1527` (s
 - Revisão (`revisor`) feita uma vez; achados médios corrigidos em `85c1527`.
 
 ## Pendente (ordem)
-1. **Rodar `supabase/migrations/0020_quem_leva.sql` no SQL Editor** (CLI deu timeout no login role em 07/11). Sem ela "Eu levo" só esconde os botões.
-2. Push dos commits (usuário autoriza).
-3. Apagar jogos de teste de 07/11 (privados, terminam hoje): "Reserva · Futebol" 18:30 Arena Society, "Teste Uni" 20:00 Arena90, "Reserva · Futebol" 20:00 Ginásio do Monstrinho.
+1. ~~0020~~ rodada 07/11 (via `npx supabase db query --remote --yes -f`; CLI logado e linkado).
+2. ~~Push~~ feito 07/11 (b63f3a3 em origin/main).
+3. ~~Jogos de teste de 07/11~~ apagados.
 4. Testar "Eu levo" com 2 contas depois da 0020.
 5. Baixa prioridade (revisor): relógio monotônico no cronômetro; validar booleanos em `set_match_options` (0018: valor não booleano quebra o feed de todos); "Jogar de novo" não copia selo nem equipamento; criador que só organiza aparece com "Você vai" na Agenda.
 6. Fazer o teste de usabilidade com 5 pessoas antes do beta público.
