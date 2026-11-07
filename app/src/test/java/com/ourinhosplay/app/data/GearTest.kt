@@ -55,6 +55,12 @@ class GearTest {
 }
 
 class MatchTagsTest {
+    @Test fun jogar_de_novo_separa_selo_do_equipamento() {
+        val o = mapOf("bola" to true, "universitario" to true)
+        assertEquals(mapOf("bola" to true), MatchTags.gearOnly(o))
+        assertEquals(true, MatchTags.isUniversity(o))
+    }
+
     @Test fun semNada_naoMandaOpcoes() =
         assertEquals(emptyMap<String, Boolean>(), MatchTags.build(Sport.Futebol, emptyMap(), university = false))
 

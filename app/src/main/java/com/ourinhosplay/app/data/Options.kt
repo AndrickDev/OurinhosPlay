@@ -63,6 +63,9 @@ object MatchTags {
 
     fun isUniversity(options: Map<String, Boolean>): Boolean = options[UNIVERSITY] == true
 
+    /** Só os interruptores de equipamento (sem o selo), para "Jogar de novo" copiar. */
+    fun gearOnly(options: Map<String, Boolean>): Map<String, Boolean> = options - UNIVERSITY
+
     /**
      * Opções que vão para o banco. Mexeu em algum interruptor: os demais itens da modalidade
      * contam como "não". O selo só vai quando ligado (jogo comum continua sem nada).

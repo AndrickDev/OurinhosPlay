@@ -173,7 +173,7 @@ class CreateMatchViewModel : ViewModel() {
         recheck()
     }
 
-    /** "Jogar de novo": copia quadra, esporte, título e vagas de um jogo anterior. */
+    /** "Jogar de novo": copia quadra, esporte, título, vagas, equipamento e selo de um jogo anterior. */
     fun prefill(m: com.ourinhosplay.app.data.MatchCard) {
         _ui.update {
             val sport = Sport.from(m.sport)
@@ -186,6 +186,8 @@ class CreateMatchViewModel : ViewModel() {
                 description = m.description.orEmpty(),
                 capacity = m.capacity,
                 roleSlots = RoleCatalog.forSport(sport)?.defaultSlots ?: 0,
+                options = com.ourinhosplay.app.data.MatchTags.gearOnly(m.options),
+                university = com.ourinhosplay.app.data.MatchTags.isUniversity(m.options),
             )
         }
         recheck()
