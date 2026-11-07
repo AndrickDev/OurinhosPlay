@@ -845,7 +845,7 @@ private fun ClockCard(ui: DetailUi, m: MatchCard, color: Color) {
                     Button(
                         onClick = { if (s.paused) ClockService.resume(ctx) else ClockService.pause(ctx) },
                         modifier = Modifier.weight(1f).height(48.dp),
-                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
                     ) { Text(if (s.paused) "Retomar" else "Pausar") }
                     OutlinedButton(onClick = { ClockService.skip(ctx) }, modifier = Modifier.weight(1f).height(48.dp)) {
                         Text(if (s.phase == com.ourinhosplay.app.data.ClockPhase.Break) "Pular" else "Fim do tempo")
