@@ -423,6 +423,7 @@ private fun Details(
 
         Countdown(m.startsAt, m.endsAt, ui.ended)
         ClockCard(ui, m, color)
+        TeamsCard(ui, m, color)
         WeatherCard(m.startsAt, ui.ended)
         if (ui.isCreator && m.isPrivate && m.capacity == 1 && !ui.ended) OpenReservationCard(color, ui.busy, onOpenReservation)
         OrganizationCard(m, ui.isMember, color, onToast, ui.roles, ui.participants)
@@ -840,6 +841,7 @@ private fun ClockCard(ui: DetailUi, m: MatchCard, color: Color) {
                     color = if (s.paused) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
                 )
             }
+            ScoreRow(mine.score, color) { team, delta -> ClockService.goal(ctx, team, delta) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 if (!done) {
                     Button(
@@ -855,6 +857,77 @@ private fun ClockCard(ui: DetailUi, m: MatchCard, color: Color) {
             }
         }
     }
+}
+
+/** Placar Time A × Time B: toque no número soma gol; o "−" desfaz um gol errado. */
+@Composable
+private fun ScoreRow(score: com.ourinhosplay.app.data.Score, color: Color, onGoal: (Int, Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        listOf(score.a, score.b).forEachIndexed { team, goals ->
+            if (team == 1) Text("×", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(com.ourinhosplay.app.data.TeamDraw.teamName(team), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { onGoal(team, -1) }, enabled = goals > 0) { Text("−", style = MaterialTheme.typography.titleLarge) }
+                    TextButton(onClick = { onGoal(team, 1) }) {
+                        Text(goals.toString(), fontFamily = ScoreFont, fontWeight = FontWeight.ExtraBold, fontSize = 40.sp, color = if (team == 0) color else Palette.Giz)
+                    }
+                }
+            }
+        }
+    }
+    Text("Toque no número para marcar gol. Fica só neste celular.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/**
+ * Sorteio de times na hora do jogo, para quem está na lista (4 ou mais confirmados).
+ * Fica só na tela: "Sortear de novo" refaz, "Mandar no grupo" compartilha o texto.
+ */
+@Composable
+private fun TeamsCard(ui: DetailUi, m: MatchCard, color: Color) {
+    if (!ui.isMember || ui.ended || m.status == "cancelled" || m.isEvent || ui.participants.size < 4) return
+    val ctx = LocalContext.current
+    val players = ui.participants.map {
+        com.ourinhosplay.app.data.DrawPlayer(it.userId, it.profiles?.displayName?.ifBlank { null } ?: "Jogador", it.role)
+    }
+    var count by remember(m.id) { mutableStateOf(2) }
+    val maxTeams = (players.size / 2).coerceIn(2, 4)
+    val n = count.coerceAtMost(maxTeams)
+    // lista mudou (alguém entrou/saiu) ou mudou o número de times: sorteio antigo some
+    var teams by remember(m.id, n, players.map { it.id }) { mutableStateOf<List<List<com.ourinhosplay.app.data.DrawPlayer>>?>(null) }
+    Column(Modifier.fillMaxWidth().card().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Sortear times", style = MaterialTheme.typography.titleMedium)
+        Stepper("Times", n.toString(), { count = (n - 1).coerceAtLeast(2) }, { count = (n + 1).coerceAtMost(maxTeams) })
+        teams?.forEachIndexed { i, t ->
+            Column {
+                Text(com.ourinhosplay.app.data.TeamDraw.teamName(i), style = MaterialTheme.typography.titleSmall, color = if (i == 0) color else Palette.Giz)
+                Text(
+                    t.joinToString(", ") { it.name + if (it.role != null) " (" + com.ourinhosplay.app.data.RoleCatalog.label(it.role) + ")" else "" },
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { teams = com.ourinhosplay.app.data.TeamDraw.draw(players, n) },
+                modifier = Modifier.weight(1f).height(48.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = color, contentColor = Palette.Noite),
+            ) { Text(if (teams == null) "Sortear" else "Sortear de novo") }
+            teams?.let { t ->
+                OutlinedButton(onClick = { shareTeams(ctx, m, t) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Mandar no grupo") }
+            }
+        }
+        Text("Divide em tamanhos iguais e espalha goleiros e levantadores.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun shareTeams(context: android.content.Context, m: MatchCard, teams: List<List<com.ourinhosplay.app.data.DrawPlayer>>) {
+    val text = m.title + "\n" + com.ourinhosplay.app.data.TeamDraw.shareText(teams)
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(android.content.Intent.createChooser(send, "Mandar os times"))
 }
 
 @Composable

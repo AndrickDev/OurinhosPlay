@@ -21,6 +21,7 @@ import com.ourinhosplay.app.data.ClockEvent
 import com.ourinhosplay.app.data.ClockPhase
 import com.ourinhosplay.app.data.ClockState
 import com.ourinhosplay.app.data.MatchClock
+import com.ourinhosplay.app.data.Score
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,7 +36,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** Cronômetro rodando agora (um por aparelho), para a tela do jogo acompanhar. */
-data class RunningClock(val matchId: String, val title: String, val state: ClockState)
+data class RunningClock(val matchId: String, val title: String, val state: ClockState, val score: Score = Score())
 
 /**
  * Cronômetro da partida em serviço de primeiro plano: continua contando e apitando com a tela
@@ -76,6 +77,10 @@ class ClockService : Service() {
                 var ev = emptyList<ClockEvent>()
                 _running.update { r -> r?.let { val (s, e) = MatchClock.skip(it.state, now); ev = e; it.copy(state = s) } }
                 react(ev)
+            }
+            ACTION_GOAL -> {
+                val team = intent.getIntExtra("team", 0); val delta = intent.getIntExtra("delta", 1)
+                _running.update { r -> r?.copy(score = r.score.add(team, delta)) }
             }
             ACTION_STOP -> { stopAll(); return START_NOT_STICKY }
         }
@@ -171,7 +176,7 @@ class ClockService : Service() {
         )
         val b = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(applicationInfo.icon)
-            .setContentTitle(r?.title?.ifBlank { null } ?: "Cronômetro")
+            .setContentTitle((r?.title?.ifBlank { null } ?: "Cronômetro") + (r?.score?.takeIf { it != Score() }?.let { " · " + it.label } ?: ""))
             .setContentIntent(open)
             .setOngoing(s?.phase != ClockPhase.Finished)
             .setOnlyAlertOnce(true)
@@ -209,7 +214,8 @@ class ClockService : Service() {
 
     override fun onDestroy() {
         releaseWake()
-        _running.value = null
+        // fim natural: mantém o placar final na tela até a pessoa tocar "Fechar"
+        if (_running.value?.state?.phase != ClockPhase.Finished) _running.value = null
         scope.cancel()
         super.onDestroy()
     }
@@ -222,6 +228,7 @@ class ClockService : Service() {
         private const val ACTION_RESUME = "clock.resume"
         private const val ACTION_SKIP = "clock.skip"
         private const val ACTION_STOP = "clock.stop"
+        private const val ACTION_GOAL = "clock.goal"
 
         private val _running = MutableStateFlow<RunningClock?>(null)
         val running: StateFlow<RunningClock?> = _running.asStateFlow()
@@ -242,5 +249,10 @@ class ClockService : Service() {
         fun resume(context: Context) = send(context, ACTION_RESUME)
         fun skip(context: Context) = send(context, ACTION_SKIP)
         fun stop(context: Context) = send(context, ACTION_STOP)
+
+        /** Gol (delta 1) ou desfazer (delta -1) para o time 0 (A) ou 1 (B). */
+        fun goal(context: Context, team: Int, delta: Int) {
+            context.startService(Intent(context, ClockService::class.java).setAction(ACTION_GOAL).putExtra("team", team).putExtra("delta", delta))
+        }
     }
 }
