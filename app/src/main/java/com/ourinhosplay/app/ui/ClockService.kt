@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -68,11 +69,12 @@ class ClockService : Service() {
                 whistle()
                 startLoop()
             }
-            ACTION_PAUSE -> update { MatchClock.pause(it, now) }
-            ACTION_RESUME -> update { MatchClock.resume(it, now) }
-            ACTION_SKIP -> _running.value?.let { r ->
-                val (s, ev) = MatchClock.skip(r.state, now)
-                _running.value = r.copy(state = s)
+            // pausado não segura o processador; retomar pega de novo
+            ACTION_PAUSE -> { update { MatchClock.pause(it, now) }; releaseWake() }
+            ACTION_RESUME -> { update { MatchClock.resume(it, now) }; acquireWake() }
+            ACTION_SKIP -> {
+                var ev = emptyList<ClockEvent>()
+                _running.update { r -> r?.let { val (s, e) = MatchClock.skip(it.state, now); ev = e; it.copy(state = s) } }
                 react(ev)
             }
             ACTION_STOP -> { stopAll(); return START_NOT_STICKY }
@@ -83,7 +85,7 @@ class ClockService : Service() {
     }
 
     private fun update(f: (ClockState) -> ClockState) {
-        _running.value?.let { r -> _running.value = r.copy(state = f(r.state)) }
+        _running.update { r -> r?.copy(state = f(r.state)) }
     }
 
     private fun startLoop() {
@@ -93,12 +95,16 @@ class ClockService : Service() {
             while (isActive) {
                 val r = _running.value ?: break
                 val (s, ev) = MatchClock.advance(r.state, System.currentTimeMillis())
-                if (s != r.state) _running.value = r.copy(state = s)
+                // CAS: se a pessoa pausou/encerrou neste instante, recalcula no próximo tick
+                if (s != r.state && !_running.compareAndSet(r, r.copy(state = s))) { delay(50); continue }
                 react(ev)
                 refreshNotification(force = false)
                 if (s.phase == ClockPhase.Finished) {
-                    // acabou: solta o processador, deixa só a notificação "Fim de jogo" para fechar
-                    wake?.takeIf { it.isHeld }?.release()
+                    // acabou: espera o apito final tocar, solta tudo e deixa só a notificação "Fim de jogo"
+                    delay(5000)
+                    releaseWake()
+                    ServiceCompat.stopForeground(this@ClockService, ServiceCompat.STOP_FOREGROUND_DETACH)
+                    stopSelf()
                     break
                 }
                 delay(500)
@@ -132,7 +138,7 @@ class ClockService : Service() {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ourinhosplay:clock").apply {
             setReferenceCounted(false)
-            acquire(4 * 60 * 60 * 1000L) // teto de segurança: 4 h
+            acquire(8 * 60 * 60 * 1000L) // teto de segurança: 8 h (máximo configurável é 7,5 h)
         }
     }
 
@@ -199,8 +205,11 @@ class ClockService : Service() {
         stopSelf()
     }
 
+    private fun releaseWake() { wake?.takeIf { it.isHeld }?.release() }
+
     override fun onDestroy() {
-        wake?.takeIf { it.isHeld }?.release()
+        releaseWake()
+        _running.value = null
         scope.cancel()
         super.onDestroy()
     }

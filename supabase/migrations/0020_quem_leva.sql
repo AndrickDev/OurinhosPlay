@@ -3,7 +3,7 @@
 
 create table if not exists public.match_gear (
   match_id uuid not null references public.matches(id) on delete cascade,
-  item text not null check (item ~ '^[a-z]{2,20}$'),
+  item text not null check (item in ('bola','colete','rede','raquete','bolinha','agua')),
   user_id uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (match_id, item)
@@ -50,7 +50,7 @@ begin
   if not public.is_match_member(p_match_id) then
     raise exception 'Entre no jogo para levar algo';
   end if;
-  if not exists (select 1 from public.matches m where m.id = p_match_id and m.ends_at > now() and m.status <> 'cancelled') then
+  if not exists (select 1 from public.matches m where m.id = p_match_id and m.ends_at > now() and m.status not in ('cancelled', 'finished')) then
     raise exception 'Esse jogo já acabou';
   end if;
 
@@ -62,6 +62,10 @@ begin
     end if;
     insert into public.match_gear (match_id, item, user_id) values (p_match_id, p_item, auth.uid())
     on conflict (match_id, item) do nothing;
+    -- corrida: outra pessoa assumiu entre a leitura e o insert
+    if not found and not exists (select 1 from public.match_gear where match_id = p_match_id and item = p_item and user_id = auth.uid()) then
+      raise exception 'Alguém já vai levar';
+    end if;
   else
     delete from public.match_gear where match_id = p_match_id and item = p_item and user_id = auth.uid();
   end if;

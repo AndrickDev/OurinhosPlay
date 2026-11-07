@@ -127,8 +127,8 @@ object Sfx {
      * que ligou o cronômetro e precisa ouvir o apito na quadra.
      */
     suspend fun play(context: Context, sound: Sound, loud: Boolean = false) = withContext(Dispatchers.Default) {
+        if (!isOn(context)) return@withContext // som desligado no Perfil vale até para o apito
         if (!loud) {
-            if (!isOn(context)) return@withContext
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             if (am.ringerMode != AudioManager.RINGER_MODE_NORMAL) return@withContext
         }

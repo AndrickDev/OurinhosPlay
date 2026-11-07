@@ -103,7 +103,7 @@ data class DetailUi(
     /** Jogo excluído): a tela fecha. */
     val deleted: Boolean = false,
     /** Quem assumiu levar cada item ("Eu levo"). */
-    val gear: List<com.ourinhosplay.app.data.GearRowDb> = emptyList(),
+    val gear: List<com.ourinhosplay.app.data.GearRowDb>? = null,
 ) {
     val canManage: Boolean get() = isCreator || isAdmin
     val cancelled: Boolean get() = match?.status == "cancelled"
@@ -139,7 +139,7 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
                     val d = async { MatchDetailRepository.detail(matchId) }
                     val p = async { MatchDetailRepository.participants(matchId) }
                     val ro = async { runCatching { RolesRepository.status(matchId) }.getOrDefault(emptyList()) }
-                    val g = async { runCatching { com.ourinhosplay.app.data.GearRepository.claims(matchId) }.getOrDefault(emptyList()) }
+                    val g = async { runCatching { com.ourinhosplay.app.data.GearRepository.claims(matchId) }.getOrNull() }
                     Triple(d.await(), p.await(), ro.await()) to g.await()
                 }
             }
@@ -148,7 +148,7 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
                     onSuccess = { (t, g) ->
                         val (m, p, ro) = t
                         if (m == null) it.copy(loading = false, error = "Esse jogo não existe mais.")
-                        else it.copy(loading = false, match = m, participants = p, roles = ro, gear = g)
+                        else it.copy(loading = false, match = m, participants = p, roles = ro, gear = g ?: it.gear)
                     },
                     onFailure = { _ -> it.copy(loading = false, error = "Sem conexão. Tente de novo.") },
                 )
@@ -871,7 +871,7 @@ private fun Stepper(label: String, value: String, onMinus: () -> Unit, onPlus: (
 @Composable
 private fun GearPanel(ui: DetailUi, m: MatchCard, onGear: (String, Boolean) -> Unit) {
     val names = ui.participants.associate { it.userId to (it.profiles?.displayName ?: "Alguém") }
-    val claims = ui.gear.map { com.ourinhosplay.app.data.GearClaim(it.item, it.userId, names[it.userId] ?: "Alguém") }
+    val claims = ui.gear.orEmpty().map { com.ourinhosplay.app.data.GearClaim(it.item, it.userId, names[it.userId] ?: "Alguém") }
     val rows = com.ourinhosplay.app.data.GearRules.rows(Sport.from(m.sport), m.options, claims, ui.me, ui.isMember)
     if (rows.isEmpty()) return
     Column(Modifier.fillMaxWidth().card().padding(horizontal = 14.dp, vertical = 6.dp)) {
@@ -880,7 +880,7 @@ private fun GearPanel(ui: DetailUi, m: MatchCard, onGear: (String, Boolean) -> U
                 val ok = r.claim != null || r.on == true
                 Box(Modifier.size(10.dp).clip(CircleShape).background(if (ok) Color(0xFF34C759) else Color(0xFF4A5068)))
                 Text(r.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 10.dp).weight(1f))
-                if (com.ourinhosplay.app.data.GearRules.canToggle(r, ui.isMember, ui.ended)) {
+                if (ui.gear != null && com.ourinhosplay.app.data.GearRules.canToggle(r, ui.isMember, ui.ended)) {
                     TextButton(onClick = { onGear(r.def.key, !r.mine) }, enabled = !ui.busy) {
                         Text(if (r.mine) "Não vou levar" else "Eu levo")
                     }
