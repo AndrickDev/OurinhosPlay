@@ -101,6 +101,8 @@ data class DetailUi(
     val arrivals: Int = 0,
     /** Jogo excluído): a tela fecha. */
     val deleted: Boolean = false,
+    /** Quem assumiu levar cada item ("Eu levo"). */
+    val gear: List<com.ourinhosplay.app.data.GearRowDb> = emptyList(),
 ) {
     val canManage: Boolean get() = isCreator || isAdmin
     val cancelled: Boolean get() = match?.status == "cancelled"
@@ -136,14 +138,16 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
                     val d = async { MatchDetailRepository.detail(matchId) }
                     val p = async { MatchDetailRepository.participants(matchId) }
                     val ro = async { runCatching { RolesRepository.status(matchId) }.getOrDefault(emptyList()) }
-                    Triple(d.await(), p.await(), ro.await())
+                    val g = async { runCatching { com.ourinhosplay.app.data.GearRepository.claims(matchId) }.getOrDefault(emptyList()) }
+                    Triple(d.await(), p.await(), ro.await()) to g.await()
                 }
             }
             _ui.update {
                 r.fold(
-                    onSuccess = { (m, p, ro) ->
+                    onSuccess = { (t, g) ->
+                        val (m, p, ro) = t
                         if (m == null) it.copy(loading = false, error = "Esse jogo não existe mais.")
-                        else it.copy(loading = false, match = m, participants = p, roles = ro)
+                        else it.copy(loading = false, match = m, participants = p, roles = ro, gear = g)
                     },
                     onFailure = { _ -> it.copy(loading = false, error = "Sem conexão. Tente de novo.") },
                 )
@@ -169,6 +173,23 @@ class MatchDetailViewModel(private val matchId: String) : ViewModel() {
                 }
                 .onSuccess {
                     _ui.update { it.copy(busy = false, toast = "Avisamos a galera que você chegou.", arrivals = it.arrivals + 1) }
+                    load()
+                }
+        }
+    }
+
+    /** "Eu levo" / soltar um item de equipamento. */
+    fun toggleGear(item: String, take: Boolean) {
+        if (_ui.value.busy) return
+        _ui.update { it.copy(busy = true, toast = null) }
+        viewModelScope.launch {
+            runCatching { com.ourinhosplay.app.data.GearRepository.toggle(matchId, item, take) }
+                .onFailure { e ->
+                    val msg = (e as? BusinessException)?.message ?: "Sem conexão. Tente de novo."
+                    _ui.update { it.copy(busy = false, toast = msg) }
+                }
+                .onSuccess {
+                    _ui.update { it.copy(busy = false) }
                     load()
                 }
         }
@@ -311,7 +332,7 @@ fun MatchDetailScreen(matchId: String, onBack: () -> Unit) {
                         OutlinedButton(onClick = vm::load, modifier = Modifier.padding(top = 12.dp)) { Text("Tentar de novo") }
                     }
                     else -> {
-                        Details(ui, match, onArrive = vm::arrive, onToast = vm::toast, onOpenReservation = vm::openReservation)
+                        Details(ui, match, onArrive = vm::arrive, onToast = vm::toast, onOpenReservation = vm::openReservation, onGear = vm::toggleGear)
                         if (ui.canManage) ManageCard(ui, match, vm)
                     }
                 }
@@ -330,6 +351,7 @@ private fun Details(
     onArrive: () -> Unit,
     onToast: (String) -> Unit,
     onOpenReservation: (Int) -> Unit,
+    onGear: (String, Boolean) -> Unit,
 ) {
     val sport = Sport.from(m.sport)
     val color = sport?.color ?: Palette.Pista
@@ -410,17 +432,7 @@ private fun Details(
             }
         }
 
-        val gear = com.ourinhosplay.app.data.OptionCatalog.resolve(Sport.from(m.sport), m.options)
-        if (gear.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                gear.forEach { (d, on) ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(10.dp).clip(CircleShape).background(if (on) Color(0xFF34C759) else Color(0xFF4A5068)))
-                        Text(if (on) d.label else "Sem " + d.short.lowercase(), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-        }
+        GearPanel(ui, m, onGear)
         if (!m.description.isNullOrBlank()) {
             Text(m.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -771,6 +783,29 @@ private fun parseMillis(iso: String): Long? =
     runCatching { OffsetDateTime.parse(iso).toInstant().toEpochMilli() }.getOrNull()
 
 /** Contagem ao vivo: "Começa em 02:14:35" / "Rolando agora" (some quando encerra). */
+/** Equipamento do jogo: o que tem e quem leva. Quem está na lista toca "Eu levo". */
+@Composable
+private fun GearPanel(ui: DetailUi, m: MatchCard, onGear: (String, Boolean) -> Unit) {
+    val names = ui.participants.associate { it.userId to (it.profiles?.displayName ?: "Alguém") }
+    val claims = ui.gear.map { com.ourinhosplay.app.data.GearClaim(it.item, it.userId, names[it.userId] ?: "Alguém") }
+    val rows = com.ourinhosplay.app.data.GearRules.rows(Sport.from(m.sport), m.options, claims, ui.me, ui.isMember)
+    if (rows.isEmpty()) return
+    Column(Modifier.fillMaxWidth().card().padding(horizontal = 14.dp, vertical = 6.dp)) {
+        rows.forEach { r ->
+            Row(Modifier.fillMaxWidth().height(44.dp), verticalAlignment = Alignment.CenterVertically) {
+                val ok = r.claim != null || r.on == true
+                Box(Modifier.size(10.dp).clip(CircleShape).background(if (ok) Color(0xFF34C759) else Color(0xFF4A5068)))
+                Text(r.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 10.dp).weight(1f))
+                if (com.ourinhosplay.app.data.GearRules.canToggle(r, ui.isMember, ui.ended)) {
+                    TextButton(onClick = { onGear(r.def.key, !r.mine) }, enabled = !ui.busy) {
+                        Text(if (r.mine) "Não vou levar" else "Eu levo")
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun Countdown(startIso: String, endIso: String, ended: Boolean) {
     if (ended) return

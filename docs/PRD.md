@@ -517,3 +517,7 @@ Ordem combinada: acabar o design → base real de quadras → painel admin → e
 - **Testes:** `FacesTest`, `MetricsTest` (JUnit local).
 - **Visual (20/10, noite):** ícones próprios por modalidade em `ui/SportIcons.kt` (futevôlei, futsal, biribol, beach tennis, padel, tênis de mesa; o tênis usa o do Material); estado vazio com quadra vista de cima (`ui/EmptyCourt.kt`); botão "Entrar" do cartão com texto claro; som "Down" (saiu do jogo) removido por soar como desconexão de cabo.
 - **Banco:** `0019` aplicada em produção em 20/10 via `db push`.
+
+## 17. Rodada de 07/11/2026 (dia do jogo e comunidade)
+Ordem combinada: (1) "Eu levo", (2) cronômetro de partida com serviço em primeiro plano, (3) selo universitário, (4) roteiro de teste e roadmap. Pix, modo dono, IA, vídeos e times ficam fora até a entrevista com os donos.
+- **"Eu levo"** (`0020_quem_leva.sql`, tabela `match_gear`, RPC `claim_gear`): no detalhe do jogo, quem está na lista vê todos os itens da modalidade e toca "Eu levo" (um responsável por item; só quem assumiu solta). Quem sai do jogo deixa de levar (trigger). Fora da lista só aparece o que o criador marcou. Regras em `GearRules` (`data/Options.kt`), testes em `GearTest`. **0020 pendente no banco** (CLI deu timeout em 07/11; rodar no SQL Editor). Sem ela o painel funciona, só não mostra quem leva.

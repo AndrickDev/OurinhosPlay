@@ -57,6 +57,26 @@ object CheckIn {
         rpcOrBusiness("check_in", buildJsonObject { put("p_match_id", matchId) }, "Não foi possível avisar")
 }
 
+// ------------------------------------------------------------------ eu levo
+
+@Serializable
+data class GearRowDb(val item: String, @SerialName("user_id") val userId: String)
+
+object GearRepository {
+    /** Itens assumidos no jogo (só quem está na lista enxerga). */
+    suspend fun claims(matchId: String): List<GearRowDb> =
+        Supabase.client.from("match_gear")
+            .select(Columns.raw("item, user_id")) { filter { eq("match_id", matchId) } }
+            .decodeList<GearRowDb>()
+
+    suspend fun toggle(matchId: String, item: String, take: Boolean) =
+        rpcOrBusiness(
+            "claim_gear",
+            buildJsonObject { put("p_match_id", matchId); put("p_item", item); put("p_take", take) },
+            "Não foi possível atualizar",
+        )
+}
+
 // ------------------------------------------------------------------ chat rápido
 
 /** Frases prontas do chat: a chave vai para o banco, o texto fica só no app. */
