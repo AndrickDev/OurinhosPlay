@@ -231,9 +231,9 @@ private fun OptionDots(sport: Sport?, options: Map<String, Boolean>) {
 }
 
 /** Cartão do jogo: capa com a foto da modalidade e o horário como placar; embaixo local, vagas, preço, equipamento e estado.
- * [joined] = a pessoa já está no jogo (Agenda): o botão vira "Você vai" em vez de "Entrar"/"Lotado". */
+ * [mine] = cartão da Agenda: o botão vira "Você vai" (está na lista) ou "Você organiza" (só criou). */
 @Composable
-fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier, joined: Boolean = false) {
+fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier, mine: Boolean = false) {
     val sport = Sport.from(m.sport)
     val color = sport?.color ?: Palette.Pista
     val cancelled = m.status == "cancelled"
@@ -308,12 +308,8 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
                 if (price != null) Text(price, style = MaterialTheme.typography.labelLarge, color = Palette.Giz)
                 OptionDots(sport, m.options)
                 Spacer(Modifier.weight(1f))
-                val (label, bg, fg) = when {
-                    cancelled -> Triple("Cancelado", Palette.Tribuna, Palette.Giz)
-                    joined -> Triple("Você vai", Palette.Tribuna, Palette.Giz)
-                    full -> Triple("Lotado", Palette.Tribuna, Palette.Giz)
-                    else -> Triple("Entrar", Palette.Pista, Palette.Giz)
-                }
+                val label = ticketAction(cancelled = cancelled, full = full, mine = mine, joined = m.joined)
+                val (bg, fg) = (if (label == "Entrar") Palette.Pista else Palette.Tribuna) to Palette.Giz
                 Text(
                     label, style = MaterialTheme.typography.labelLarge, color = fg,
                     modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 16.dp, vertical = 6.dp),
@@ -381,4 +377,13 @@ fun UniversityBadge(modifier: Modifier = Modifier) {
             .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(50))
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
+}
+
+/** Texto do botão do cartão. Na Agenda ([mine]) quem só organiza vê "Você organiza", não "Você vai". */
+internal fun ticketAction(cancelled: Boolean, full: Boolean, mine: Boolean, joined: Boolean): String = when {
+    cancelled -> "Cancelado"
+    mine && joined -> "Você vai"
+    mine -> "Você organiza"
+    full -> "Lotado"
+    else -> "Entrar"
 }

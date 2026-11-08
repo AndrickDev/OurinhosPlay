@@ -75,6 +75,8 @@ data class MatchCard(
     val options: Map<String, Boolean> = emptyMap(),
     /** Iniciais dos primeiros participantes (migration 0019); vazio se a migration ainda não rodou. */
     val faces: List<String> = emptyList(),
+    /** Só na Agenda: a pessoa está na lista (false = criou o jogo mas só organiza). Não vem do banco. */
+    @kotlinx.serialization.Transient val joined: Boolean = false,
 ) {
     val spotsLeft: Int get() = (capacity - taken).coerceAtLeast(0)
 }
@@ -126,16 +128,16 @@ object MineRepository {
         val uid = db.auth.currentUserOrNull()?.id ?: return emptyList()
         val ids = db.from("participants")
             .select(io.github.jan.supabase.postgrest.query.Columns.list("match_id")) { filter { eq("user_id", uid) } }
-            .decodeList<MatchIdRow>().map { it.matchId }
+            .decodeList<MatchIdRow>().map { it.matchId }.toSet()
         return db.from("matches_feed").select {
             filter {
                 or {
                     eq("creator_id", uid)
-                    if (ids.isNotEmpty()) isIn("id", ids)
+                    if (ids.isNotEmpty()) isIn("id", ids.toList())
                 }
             }
             order("starts_at", Order.DESCENDING)
-        }.decodeList<MatchCard>()
+        }.decodeList<MatchCard>().map { it.copy(joined = it.id in ids) }
     }
 }
 
