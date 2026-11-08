@@ -542,3 +542,9 @@ Ordem combinada: (1) "Eu levo", (2) cronômetro de partida com serviço em prime
 | Futuro | IA assistente (sugere horário/time, sem executar nada); melhores momentos enviados ao canal do YouTube (link, sem hospedar vídeo) | custo por uso; LGPD (imagem de terceiros exige consentimento) | pedido recorrente dos usuários |
 
 Riscos: Play Store (justificar FGS `specialUse`, política de privacidade, consentimento de localização, fotos sem marca), LGPD (exclusão de conta já existe; imagem e dados de menores no universitário/torneio), custo (Supabase free pausa por inatividade; IA paga por uso).
+
+### Rodada de 07/11/2026 (tarde, sem pessoas)
+- **Relógio monotônico no cronômetro:** `ClockService` e o cartão usam `clockNow()` (`SystemClock.elapsedRealtime`); mudar a hora do celular não pula o tempo. A notificação continua usando hora de parede só para o `setWhen`.
+- **Agenda:** criador que não está na lista vê "Você organiza" (antes "Você vai"). `MatchCard.joined` (transiente, preenchido por `MineRepository`) + `ticketAction` em `Components.kt`, testes em `TicketActionTest`.
+- **Dados de teste reutilizáveis:** `supabase/testes/jogo_rolando.sql` (5 jogadores falsos, jogo rolando com 6 e jogo "só organizo") e `limpar_testes.sql`.
+- **Docs:** `docs/TESTES-PENDENTES.md` (spec de todos os testes manuais), `docs/POLITICA-PRIVACIDADE.md` (rascunho LGPD), `docs/PLAY-STORE.md` (texto do FGS `specialUse` e Data safety).

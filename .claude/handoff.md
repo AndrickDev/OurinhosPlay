@@ -1,20 +1,20 @@
-# Handoff (07/11/2026)
+# Handoff (07/11/2026, tarde)
 
 ## Estado
-Rodada "dia do jogo e comunidade" pronta: 7 commits locais `4e09477..85c1527` (sem push; `main` está 19 à frente de `origin/main`). Testes 39/39, lint 0 erros, conferido no emulador `ourinhos_pixel`. Detalhes em `docs/PRD.md` seção 17.
+`main` = `origin/main` (607557e) + mudanças **não commitadas** desta rodada. Testes 51/51, lint 0 erros, app instalado no emulador (deslogado).
 
-## Feito
-- "Eu levo" (0020, `match_gear`, `claim_gear`), cronômetro com serviço em primeiro plano e apito de alarme, selo Universitário, Agenda "Você vai", abrir o jogo após publicar, roteiro de teste (`docs/TESTE-USABILIDADE.md`) e roadmap curto (PRD §17).
-- Revisão (`revisor`) feita uma vez; achados médios corrigidos em `85c1527`.
+## Feito (sem commit)
+- Relógio monotônico no cronômetro (`clockNow()` em `ui/ClockService.kt`).
+- Agenda: "Você organiza" para criador fora da lista (`ticketAction`, `TicketActionTest`).
+- `supabase/testes/jogo_rolando.sql` + `limpar_testes.sql`.
+- `docs/TESTES-PENDENTES.md` (spec de testes), `docs/POLITICA-PRIVACIDADE.md`, `docs/PLAY-STORE.md`, PRD §17 atualizado.
 
-## Rodada da noite 07/11
-Placar no cronômetro, sorteio de times, "Jogar de novo" copia selo/equipamento, 0021 (opções só booleanas). Commits eebaa33..8a5ae29, 47/47 testes, lint 0. Revisor 1x, achados aplicados. Não visto no emulador (sem jogo em andamento com 4+). 0021 rodada 07/11. **Push pendente.**
+## Bloqueado
+- ~~Seed~~ rodado pelo usuário 07/11; testes A1-A5, B1-B4, B7, B8, C1-C3, D1 passaram no emulador (ver TESTES-PENDENTES.md). Dados de teste apagados 07/11 (limpar_testes.sql: 0 e 0).
+- Faltam A6, B6, B9, C4, D2, D3, E1, E2.
 
-## Pendente (ordem)
-1. ~~0020~~ rodada 07/11 (via `npx supabase db query --remote --yes -f`; CLI logado e linkado).
-2. ~~Push~~ feito 07/11 (b63f3a3 em origin/main).
-3. ~~Jogos de teste de 07/11~~ apagados.
-4. Testar "Eu levo" com 2 contas depois da 0020.
-5. Baixa prioridade (revisor): relógio monotônico no cronômetro; validar booleanos em `set_match_options` (0018: valor não booleano quebra o feed de todos); "Jogar de novo" não copia selo nem equipamento; criador que só organiza aparece com "Você vai" na Agenda.
-6. Fazer o teste de usabilidade com 5 pessoas antes do beta público.
-7. Antigos: Firebase/push, política de privacidade, fotos com marca (futsal, biribol), justificar FGS `specialUse` no Play Console.
+## Próximo
+1. Usuário: commit? Rodar o seed, logar no emulador, seguir `docs/TESTES-PENDENTES.md` (A-E).
+2. Decidir foto de futsal (bola com desenho de marca); biribol sem marca visível.
+3. Firebase/push precisa do projeto Firebase do usuário (google-services.json).
+4. Roadmap "Agora": lista de espera por função.
