@@ -827,9 +827,9 @@ private fun ClockCard(ui: DetailUi, m: MatchCard, color: Color) {
             }
             Text("Apita no fim de cada tempo mesmo com a tela bloqueada e o celular no silencioso.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            var now by remember { mutableStateOf(System.currentTimeMillis()) }
+            var now by remember { mutableStateOf(clockNow()) }
             LaunchedEffect(mine.state) {
-                while (true) { now = System.currentTimeMillis(); kotlinx.coroutines.delay(250) }
+                while (true) { now = clockNow(); kotlinx.coroutines.delay(250) }
             }
             val s = mine.state
             val done = s.phase == com.ourinhosplay.app.data.ClockPhase.Finished

@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.core.app.NotificationCompat
@@ -52,7 +53,7 @@ class ClockService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val now = System.currentTimeMillis()
+        val now = clockNow()
         when (intent?.action) {
             ACTION_START -> {
                 val cfg = ClockConfig(
@@ -99,7 +100,7 @@ class ClockService : Service() {
         loop = scope.launch {
             while (isActive) {
                 val r = _running.value ?: break
-                val (s, ev) = MatchClock.advance(r.state, System.currentTimeMillis())
+                val (s, ev) = MatchClock.advance(r.state, clockNow())
                 // CAS: se a pessoa pausou/encerrou neste instante, recalcula no próximo tick
                 if (s != r.state && !_running.compareAndSet(r, r.copy(state = s))) { delay(50); continue }
                 react(ev)
@@ -169,7 +170,7 @@ class ClockService : Service() {
         }
         val r = _running.value
         val s = r?.state
-        val now = System.currentTimeMillis()
+        val now = clockNow()
         val open = PendingIntent.getActivity(
             this, 2, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -190,7 +191,7 @@ class ClockService : Service() {
             } else if (s.phase == ClockPhase.Finished) {
                 b.setContentText(label).setShowWhen(false)
             } else {
-                b.setContentText(label).setWhen(now + s.remaining(now)).setShowWhen(true)
+                b.setContentText(label).setWhen(System.currentTimeMillis() + s.remaining(now)).setShowWhen(true)
                     .setUsesChronometer(true).setChronometerCountDown(true)
                 b.addAction(0, "Pausar", action(ACTION_PAUSE))
             }
@@ -256,3 +257,10 @@ class ClockService : Service() {
         }
     }
 }
+
+/**
+ * Relógio do cronômetro: monotônico (não pula se a pessoa ou a rede mudar a hora do celular) e
+ * continua contando com o aparelho dormindo. Só serve para medir intervalos; o estado não sobrevive
+ * a reiniciar o celular, então não precisa de hora de parede.
+ */
+fun clockNow(): Long = SystemClock.elapsedRealtime()
