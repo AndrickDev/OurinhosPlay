@@ -185,7 +185,7 @@ fun ProfileScreen(displayName: String, onSignOut: () -> Unit, onAccountDeleted: 
             Column(Modifier.weight(1f)) {
                 Text("Sons do app", style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Apito, avisos e efeitos. Respeita o modo silencioso.",
+                    "Apito, avisos e efeitos. Respeita o modo silencioso, menos o apito do cronômetro.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
