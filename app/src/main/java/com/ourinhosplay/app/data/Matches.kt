@@ -95,11 +95,15 @@ object MatchRepository {
             }
             order("starts_at", Order.ASCENDING)
         }.decodeList<MatchCard>()
-        return try {
+        val list = try {
             query(hidePrivate = true)
         } catch (e: io.github.jan.supabase.exceptions.RestException) {
             query(hidePrivate = false) // banco sem a migration 0014
         }
+        // Marca os jogos em que já estou, para o cartão dizer "Você vai" e não "Entrar".
+        val uid = db.auth.currentUserOrNull()?.id ?: return list
+        val ids = runCatching { MineRepository.joinedIds(uid) }.getOrDefault(emptySet())
+        return list.map { it.copy(joined = it.id in ids) }
     }
 
     /** Acha um jogo pelo código curto de convite; devolve o id. */
@@ -123,12 +127,15 @@ private data class MatchIdRow(@SerialName("match_id") val matchId: String)
 object MineRepository {
     private val db get() = Supabase.client
 
+    /** Ids dos jogos em que estou na lista. */
+    suspend fun joinedIds(uid: String): Set<String> = db.from("participants")
+        .select(io.github.jan.supabase.postgrest.query.Columns.list("match_id")) { filter { eq("user_id", uid) } }
+        .decodeList<MatchIdRow>().map { it.matchId }.toSet()
+
     /** Jogos que criei ou em que estou confirmado (inclui passados e cancelados). */
     suspend fun matches(): List<MatchCard> {
         val uid = db.auth.currentUserOrNull()?.id ?: return emptyList()
-        val ids = db.from("participants")
-            .select(io.github.jan.supabase.postgrest.query.Columns.list("match_id")) { filter { eq("user_id", uid) } }
-            .decodeList<MatchIdRow>().map { it.matchId }.toSet()
+        val ids = joinedIds(uid)
         return db.from("matches_feed").select {
             filter {
                 or {

@@ -17,6 +17,17 @@ class TicketActionTest {
         assertEquals("Lotado", ticketAction(cancelled = false, full = true, mine = false, joined = false))
     }
 
+    @Test fun feed_quem_ja_esta_na_lista_ve_voce_vai_e_nao_entrar() {
+        assertEquals("Você vai", ticketAction(cancelled = false, full = false, mine = false, joined = true))
+        assertEquals("Você vai", ticketAction(cancelled = false, full = true, mine = false, joined = true))
+    }
+
+    @Test fun historico_mostra_encerrado_e_nao_convida_a_entrar() {
+        assertEquals("Encerrado", ticketAction(cancelled = false, full = false, mine = false, joined = false, past = true))
+        assertEquals("Encerrado", ticketAction(cancelled = false, full = true, mine = false, joined = true, past = true))
+        assertEquals("Cancelado", ticketAction(cancelled = true, full = false, mine = false, joined = false, past = true))
+    }
+
     @Test fun cancelado_vence_tudo() {
         assertEquals("Cancelado", ticketAction(cancelled = true, full = false, mine = true, joined = true))
     }

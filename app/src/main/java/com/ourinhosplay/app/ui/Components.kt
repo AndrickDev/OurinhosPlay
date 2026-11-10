@@ -231,9 +231,10 @@ private fun OptionDots(sport: Sport?, options: Map<String, Boolean>) {
 }
 
 /** Cartão do jogo: capa com a foto da modalidade e o horário como placar; embaixo local, vagas, preço, equipamento e estado.
- * [mine] = cartão da Agenda: o botão vira "Você vai" (está na lista) ou "Você organiza" (só criou). */
+ * [mine] = cartão da Agenda: o botão vira "Você vai" (está na lista) ou "Você organiza" (só criou).
+ * [past] = Histórico: botão "Encerrado" e sem selo de vaga por função. */
 @Composable
-fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier, mine: Boolean = false) {
+fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier, mine: Boolean = false, past: Boolean = false) {
     val sport = Sport.from(m.sport)
     val color = sport?.color ?: Palette.Pista
     val cancelled = m.status == "cancelled"
@@ -257,7 +258,7 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
             }
             val tag = when {
                 m.isEvent -> "Evento"
-                !full && !cancelled && m.rolesOpen.isNotEmpty() ->
+                !full && !cancelled && !past && m.rolesOpen.isNotEmpty() ->
                     "Falta " + m.rolesOpen.joinToString(", ") { com.ourinhosplay.app.data.RoleCatalog.label(it).lowercase() }
                 else -> null
             }
@@ -308,7 +309,7 @@ fun MatchTicket(m: MatchCard, onClick: () -> Unit, modifier: Modifier = Modifier
                 if (price != null) Text(price, style = MaterialTheme.typography.labelLarge, color = Palette.Giz)
                 OptionDots(sport, m.options)
                 Spacer(Modifier.weight(1f))
-                val label = ticketAction(cancelled = cancelled, full = full, mine = mine, joined = m.joined)
+                val label = ticketAction(cancelled = cancelled, full = full, mine = mine, joined = m.joined, past = past)
                 val (bg, fg) = (if (label == "Entrar") Palette.Pista else Palette.Tribuna) to Palette.Giz
                 Text(
                     label, style = MaterialTheme.typography.labelLarge, color = fg,
@@ -379,10 +380,12 @@ fun UniversityBadge(modifier: Modifier = Modifier) {
     )
 }
 
-/** Texto do botão do cartão. Na Agenda ([mine]) quem só organiza vê "Você organiza", não "Você vai". */
-internal fun ticketAction(cancelled: Boolean, full: Boolean, mine: Boolean, joined: Boolean): String = when {
+/** Texto do botão do cartão. Quem está na lista vê "Você vai" (feed e Agenda); na Agenda ([mine]) quem só
+ * organiza vê "Você organiza"; no Histórico ([past]) vira "Encerrado". */
+internal fun ticketAction(cancelled: Boolean, full: Boolean, mine: Boolean, joined: Boolean, past: Boolean = false): String = when {
     cancelled -> "Cancelado"
-    mine && joined -> "Você vai"
+    past -> "Encerrado"
+    joined -> "Você vai"
     mine -> "Você organiza"
     full -> "Lotado"
     else -> "Entrar"
