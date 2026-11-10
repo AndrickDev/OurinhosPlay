@@ -548,3 +548,9 @@ Riscos: Play Store (justificar FGS `specialUse`, política de privacidade, conse
 - **Agenda:** criador que não está na lista vê "Você organiza" (antes "Você vai"). `MatchCard.joined` (transiente, preenchido por `MineRepository`) + `ticketAction` em `Components.kt`, testes em `TicketActionTest`.
 - **Dados de teste reutilizáveis:** `supabase/testes/jogo_rolando.sql` (5 jogadores falsos, jogo rolando com 6 e jogo "só organizo") e `limpar_testes.sql`.
 - **Docs:** `docs/TESTES-PENDENTES.md` (spec de todos os testes manuais), `docs/POLITICA-PRIVACIDADE.md` (rascunho LGPD), `docs/PLAY-STORE.md` (texto do FGS `specialUse` e Data safety).
+
+### Rodada de 10/11/2026 (testes pendentes no emulador)
+- Testes A6, B6, B9, C4, D2, D3, E1, E2 passaram (detalhes em `docs/TESTES-PENDENTES.md`).
+- **Botão do cartão** (`ticketAction`): quem está na lista vê "Você vai" também no feed (`openMatches` marca `joined` via `MineRepository.joinedIds`); no Histórico o cartão mostra "Encerrado" e esconde o selo "Falta <função>" (`MatchTicket(past = true)`).
+- Texto de "Sons do app" cita a exceção do apito do cronômetro no silencioso.
+- Pendentes anotados: detalhe não recarrega ao reabrir; "Jogar de novo" não copia o valor da quadra; Home vazia uma vez logo após instalar (não reproduziu).
